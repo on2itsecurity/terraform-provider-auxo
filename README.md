@@ -36,8 +36,8 @@ Now you can create a `main.tf` file and add the provider configuration.
 terraform {
   required_providers {
     auxo = {
-      version = "0.1"
-      source  = "on2it.net/zerotrust/auxo"
+      version = "0.0.1"
+      source  = "on2it/auxo"
     }
   }
 }
@@ -90,6 +90,6 @@ scp ./terraform-provider-auxo <USER>@<DESTINATION.SERVER>:~/
 * Create a folder on the destination server in your home-directory and move the binary
 
 ```shell
-mkdir -p ~/.terraform.d/plugins/on2it.net/zerotrust/auxo/0.1/linux_amd64
-mv ~/terraform-provider-auxo ~/.terraform.d/plugins/on2it.net/zerotrust/auxo/0.1/linux_amd64/
+mkdir -p ~/.terraform.d/plugins/on2it/auxo/0.1/linux_amd64
+mv ~/terraform-provider-auxo ~/.terraform.d/plugins/on2it/auxo/0.1/linux_amd64/
 ```
