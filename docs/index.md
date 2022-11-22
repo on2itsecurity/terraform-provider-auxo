@@ -16,7 +16,7 @@ This provider is build to interact with the AUXO platform.
 terraform {
   required_providers {
     auxo = {
-      source = "on2it/auxo"
+      source = "on2itsecurity/auxo"
       version = "0.0.1"
     }
   }

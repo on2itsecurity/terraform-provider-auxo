@@ -3,7 +3,7 @@ terraform {
   required_providers {
     auxo = {
       version = "0.0.1"
-      source  = "registry.terraform.io/on2it/auxo"
+      source  = "on2itsecurity/auxo"
     }
   }
 }
