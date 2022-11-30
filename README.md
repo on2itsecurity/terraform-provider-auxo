@@ -9,19 +9,11 @@ Supported resources:
 * protectsurface
 * protectsurface_state
 
-## Install the provider
+The provider can be found here: https://registry.terraform.io/providers/on2itsecurity/auxo/latest
 
-If can't wait to try it out, you can install the provider by cloning this repo and running `make install`.
+## Usage
 
-```shell
-git clone
-git mod vendor
-make install
-```
-
-This will make the provider avaialble to your local Terraform installation.
-
-## First resource creation
+### First resource creation
 
 To prevent your token from being exposed, you can use the `AUXOTOKEN` environment variable to pass the token to Terraform.
 This way it doesn't need to be set in the terraform file(s).
@@ -37,7 +29,7 @@ terraform {
   required_providers {
     auxo = {
       version = "0.0.1"
-      source  = "on2it/auxo"
+      source  = "on2itsecurity/auxo"
     }
   }
 }
@@ -72,7 +64,21 @@ If you want to destroy the resource, you can do so with the following command.
 terraform destroy
 ```
 
-## Using the provider on a different machine
+## Development
+
+### Install the provider for development
+
+You can install the provider (locally) by cloning this repo and running `make install`.
+
+```shell
+git clone
+git mod vendor
+make install
+```
+
+This will make the provider avaialble to your local Terraform installation.
+
+### Using the locally build provider on a different machine
 Below example assumes a Linux system.
 
 * Build or get the binary for the destination machine OS and architecture.
@@ -90,6 +96,6 @@ scp ./terraform-provider-auxo <USER>@<DESTINATION.SERVER>:~/
 * Create a folder on the destination server in your home-directory and move the binary
 
 ```shell
-mkdir -p ~/.terraform.d/plugins/on2it/auxo/0.1/linux_amd64
-mv ~/terraform-provider-auxo ~/.terraform.d/plugins/on2it/auxo/0.1/linux_amd64/
+mkdir -p ~/.terraform.d/plugins/on2itsecurity/auxo/0.1/linux_amd64
+mv ~/terraform-provider-auxo ~/.terraform.d/plugins/on2itsecurity/auxo/0.1/linux_amd64/
 ```
