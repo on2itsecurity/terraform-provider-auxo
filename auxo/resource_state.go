@@ -118,6 +118,14 @@ func resourceStateRead(ctx context.Context, d *schema.ResourceData, m interface{
 	state, err := apiClient.ZeroTrust.GetStateByID(d.Id())
 
 	if err != nil {
+		apiError := getAPIError(err)
+
+		//NotExists
+		if apiError.ID == "410" {
+			d.SetId("")
+			return nil
+		}
+
 		return diag.FromErr(err)
 	}
 

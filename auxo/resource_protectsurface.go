@@ -71,16 +71,19 @@ func resourceProtectSurface() *schema.Resource {
 			"confidentiality": {
 				Type:        schema.TypeInt,
 				Optional:    true,
+				Default:     1,
 				Description: "Confidentiality score (number 1-5)",
 			},
 			"integrity": {
 				Type:        schema.TypeInt,
 				Optional:    true,
+				Default:     1,
 				Description: "Integrity score (number 1-5)",
 			},
 			"availability": {
 				Type:        schema.TypeInt,
 				Optional:    true,
+				Default:     1,
 				Description: "Availability score (number 1-5)",
 			},
 			"data_tags": {
@@ -195,6 +198,14 @@ func resourceProtectSurfaceRead(ctx context.Context, d *schema.ResourceData, m i
 	ps, err := apiClient.ZeroTrust.GetProtectSurfaceByID(d.Id())
 
 	if err != nil {
+		apiError := getAPIError(err)
+
+		//NotExists
+		if apiError.ID == "410" {
+			d.SetId("")
+			return nil
+		}
+
 		return diag.FromErr(err)
 	}
 
