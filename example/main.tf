@@ -2,10 +2,15 @@
 terraform {
   required_providers {
     auxo = {
-      version = "0.0.1"
+      version = "0.0.2"
       source  = "on2itsecurity/auxo"
     }
   }
+}
+
+// Get the contact based on the email address
+data "auxo_contact" "rob"{
+  email = "rob.maas+tst@on2it.net"
 }
 
 // Represents protect-surface "Active Directory"
@@ -18,8 +23,8 @@ resource "auxo_protectsurface" "ps_ad" {
   confidentiality     = 3
   availability        = 2
   integrity           = 3
-  main_contact        = "37904"
-  security_contact    = "37904"
+  main_contact        = data.auxo_contact.rob.id
+  security_contact    = data.auxo_contact.rob.id
   data_tags           = ["PII"]
   compliance_tags     = ["GDPR"]
   customer_labels = {
@@ -41,8 +46,8 @@ resource "auxo_protectsurface" "ps_mail" {
   integrity           = 3
   in_control_boundary = true
   in_zero_trust_focus = true
-  main_contact        = "37904"
-  security_contact    = "37904"
+  main_contact        = data.auxo_contact.rob.id
+  security_contact    = data.auxo_contact.rob.id
   data_tags           = ["PII", "PCI"]
   compliance_tags     = ["PCI"]
   soc_tags            = ["postfix", "linux"]
