@@ -29,12 +29,14 @@ func Provider() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc("AUXOTOKEN", ""),
 			},
 		},
+		DataSourcesMap: map[string]*schema.Resource{
+			"auxo_contact": dataSourceContact(),
+		},
 		ResourcesMap: map[string]*schema.Resource{
 			"auxo_location":       resourceLocation(),
 			"auxo_protectsurface": resourceProtectSurface(),
 			"auxo_state":          resourceState(),
 		},
-		DataSourcesMap:       map[string]*schema.Resource{},
 		ConfigureContextFunc: providerConfigure,
 	}
 }
