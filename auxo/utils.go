@@ -11,6 +11,17 @@ type apiError struct {
 	Message string `json:"error_message"`
 }
 
+// createStringSliceFromListInput converts a slice/list of interface{} to a slice of strings
+func createStringSliceFromListInput(inputList []interface{}) []string {
+	output := make([]string, len(inputList))
+	for k, v := range inputList {
+		output[k] = v.(string)
+	}
+
+	return output
+}
+
+// getAPIError returns an apiError struct from a go-auxo error
 func getAPIError(err error) apiError {
 	var apiErr apiError
 	//Workaround for API error messages from go-auxo

@@ -33,9 +33,10 @@ func Provider() *schema.Provider {
 			"auxo_contact": dataSourceContact(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"auxo_location":       resourceLocation(),
-			"auxo_protectsurface": resourceProtectSurface(),
-			"auxo_state":          resourceState(),
+			"auxo_location":        resourceLocation(),
+			"auxo_protectsurface":  resourceProtectSurface(),
+			"auxo_state":           resourceState(),
+			"auxo_transactionflow": resourceTransactionFlow(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}

@@ -2,7 +2,7 @@ module github.com/on2itsecurity/terraform-provider-auxo
 
 go 1.19
 
-require github.com/on2itsecurity/go-auxo v1.0.0
+require github.com/on2itsecurity/go-auxo v1.0.1
 
 require (
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect

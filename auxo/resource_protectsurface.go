@@ -110,6 +110,18 @@ func resourceProtectSurface() *schema.Resource {
 				Description: "Contains tags, which are used by the SOC engineers",
 				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
+			"allow_flows_from_outside": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Does this protect surface allows to have flows from outside (e.g. Internet)",
+				Default:     false,
+			},
+			"allow_flows_to_outside": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Does this protect surface allows to have flows to outside (e.g. Internet)",
+				Default:     false,
+			},
 			"maturity_step1": {
 				Type:        schema.TypeInt,
 				Default:     1,
@@ -170,6 +182,12 @@ func resourceProtectSurfaceCreate(ctx context.Context, d *schema.ResourceData, m
 		cl[k] = v.(string)
 	}
 	ps.CustomerLabels = cl
+
+	//Transaction Flows External
+	ps.FlowsFromOutside = zerotrust.Flow{Allow: d.Get("allow_flows_from_outside").(bool)}
+	ps.FlowsToOutside = zerotrust.Flow{Allow: d.Get("allow_flows_to_outside").(bool)}
+
+	//Maturity
 	ps.Maturity.Step1 = d.Get("maturity_step1").(int)
 	ps.Maturity.Step2 = d.Get("maturity_step2").(int)
 	ps.Maturity.Step3 = d.Get("maturity_step3").(int)
@@ -225,6 +243,12 @@ func resourceProtectSurfaceRead(ctx context.Context, d *schema.ResourceData, m i
 	d.Set("compliance_tags", ps.ComplianceTags)
 	d.Set("customer_labels", ps.CustomerLabels)
 	d.Set("soc_tags", ps.SocTags)
+
+	//Transaction Flows External
+	d.Set("allow_flows_from_outside", ps.FlowsFromOutside.Allow)
+	d.Set("allow_flows_to_outside", ps.FlowsToOutside.Allow)
+
+	//Maturity
 	d.Set("maturity_step1", ps.Maturity.Step1)
 	d.Set("maturity_step2", ps.Maturity.Step2)
 	d.Set("maturity_step3", ps.Maturity.Step3)
@@ -293,6 +317,16 @@ func resourceProtectSurfaceUpdate(ctx context.Context, d *schema.ResourceData, m
 	if d.HasChange("soc_tags") {
 		ps.SocTags = createStringSliceFromListInput(d.Get("soc_tags").(*schema.Set).List())
 	}
+
+	//Transaction Flows External
+	if d.HasChange("allow_flows_from_outside") {
+		ps.FlowsFromOutside.Allow = d.Get("allow_flows_from_outside").(bool)
+	}
+	if d.HasChange("allow_flows_to_outside") {
+		ps.FlowsToOutside.Allow = d.Get("allow_flows_to_outside").(bool)
+	}
+
+	//Maturity
 	if d.HasChange("maturity_step1") {
 		ps.Maturity.Step1 = d.Get("maturity_step1").(int)
 	}
@@ -333,13 +367,4 @@ func resourceProtectSurfaceDelete(ctx context.Context, d *schema.ResourceData, m
 	d.SetId("")
 
 	return diags
-}
-
-func createStringSliceFromListInput(inputList []interface{}) []string {
-	output := make([]string, len(inputList))
-	for k, v := range inputList {
-		output[k] = v.(string)
-	}
-
-	return output
 }
