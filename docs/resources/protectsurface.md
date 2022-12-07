@@ -32,7 +32,9 @@ resource "auxo_protectsurface" "ps_ad" {
     os         = "Windows"
     created-by = "Terraform"
   }
-  soc_tags       = ["active-directory", "windows"]
+  soc_tags                   = ["active-directory", "windows"]
+  allow_flows_from_outside   = false
+  allow_flows_to_outside     = false
 }
 ```
 
@@ -45,6 +47,8 @@ resource "auxo_protectsurface" "ps_ad" {
 
 ### Optional
 
+- `allow_flows_from_outside` (Boolean) Does this protect surface allows to have flows from outside (e.g. Internet)
+- `allow_flows_to_outside` (Boolean) Does this protect surface allows to have flows to outside (e.g. Internet)
 - `availability` (Number) Availability score (number 1-5)
 - `compliance_tags` (Set of String) Contains compliance tags, defining compliancy requirements of the protect surface
 - `confidentiality` (Number) Confidentiality score (number 1-5)

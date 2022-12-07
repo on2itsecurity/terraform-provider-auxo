@@ -8,6 +8,10 @@ Supported resources:
 * location
 * protectsurface
 * protectsurface_state
+* transaction_flow
+
+Supported data sources:
+* contact
 
 The provider can be found here: https://registry.terraform.io/providers/on2itsecurity/auxo/latest
 
@@ -28,7 +32,7 @@ Now you can create a `main.tf` file and add the provider configuration.
 terraform {
   required_providers {
     auxo = {
-      version = "0.0.1"
+      version = "0.0.3"
       source  = "on2itsecurity/auxo"
     }
   }

@@ -28,5 +28,3 @@ data "auxo_contact" "rob"{
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-
-
