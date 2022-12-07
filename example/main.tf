@@ -2,14 +2,13 @@
 terraform {
   required_providers {
     auxo = {
-      version = "0.0.2"
-      source  = "on2itsecurity/auxo"
+      source = "on2itsecurity/auxo"
     }
   }
 }
 
 // Get the contact based on the email address
-data "auxo_contact" "rob"{
+data "auxo_contact" "rob" {
   email = "rob.maas+tst@on2it.net"
 }
 
@@ -33,7 +32,18 @@ resource "auxo_protectsurface" "ps_ad" {
     os         = "Windows"
     created-by = "Terraform"
   }
-  soc_tags       = ["active-directory", "windows"]
+  soc_tags                 = ["active-directory", "windows"]
+  allow_flows_from_outside = false
+  allow_flows_to_outside   = false
+}
+
+// Represents transactionflows related to protect surface "Active Directory"
+resource "auxo_transactionflow" "tf_ps_ad" {
+  protectsurface                 = auxo_protectsurface.ps_ad.id
+  incoming_protectsurfaces_allow = [auxo_protectsurface.ps_mail.id]
+  incoming_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
+  outgoing_protectsurfaces_allow = [auxo_protectsurface.ps_mail.id]
+  outgoing_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
 }
 
 // Represents protect-surface "Mail"
@@ -57,15 +67,28 @@ resource "auxo_protectsurface" "ps_mail" {
     os         = "Linux"
     created-by = "Terraform"
   }
+  allow_flows_from_outside = true
+  allow_flows_to_outside   = true
+}
+
+// Represents transactionflows related to protect surface "Mail"
+resource "auxo_transactionflow" "tf_ps_mail" {
+  protectsurface                 = auxo_protectsurface.ps_mail.id
+  incoming_protectsurfaces_allow = [auxo_protectsurface.ps_ad.id]
+  incoming_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
+  outgoing_protectsurfaces_allow = [auxo_protectsurface.ps_ad.id]
+  outgoing_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
 }
 
 // Represents protect-surface "Guests"
 resource "auxo_protectsurface" "ps_guests" {
-  name                = "Guests"
-  description         = "Guest network"
-  relevance           = 10
-  in_control_boundary = true
-  in_zero_trust_focus = false
+  name                     = "Guests"
+  description              = "Guest network"
+  relevance                = 10
+  in_control_boundary      = true
+  in_zero_trust_focus      = false
+  allow_flows_to_outside   = true
+  allow_flows_from_outside = false
 }
 
 // Represents location (this is used in states to specify where resources live)
@@ -81,7 +104,6 @@ resource "auxo_location" "loc_zaltbommel" {
   latitude  = 51.7983645
   longitude = 5.2548381
 }
-
 
 // Represents a state, this can be seen as the glue between protect-surface, location and the type of resources it represent
 // A protect surface can have multipe states attached to it

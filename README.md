@@ -32,7 +32,6 @@ Now you can create a `main.tf` file and add the provider configuration.
 terraform {
   required_providers {
     auxo = {
-      version = "0.0.3"
       source  = "on2itsecurity/auxo"
     }
   }
