@@ -2,6 +2,7 @@ package auxo
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -152,6 +153,54 @@ func resourceProtectSurface() *schema.Resource {
 				Optional:    true,
 				Description: "maturity step 5 - monitor and maintain",
 			},
+
+			"measure": {
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Description: "List of measures set for this protect surface",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"type": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "type of the measure",
+						},
+						"assigned": {
+							Type:        schema.TypeBool,
+							Optional:    true,
+							Description: "Is this measure assigned to the protect surface",
+							Default:     true,
+						},
+						"assigned_by": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Who assigned this measure to the protect surface",
+						},
+						"implemented": {
+							Type:        schema.TypeBool,
+							Optional:    true,
+							Description: "Is this measure implemented to the protect surface",
+							Default:     true,
+						},
+						"implemented_by": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Who implemented this measure to the protect surface",
+						},
+						"evidenced": {
+							Type:        schema.TypeBool,
+							Optional:    true,
+							Description: "Is there evidence that this measure is implemented",
+							Default:     true,
+						},
+						"evidenced_by": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Who evidenced that this measure is implementd",
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -193,6 +242,41 @@ func resourceProtectSurfaceCreate(ctx context.Context, d *schema.ResourceData, m
 	ps.Maturity.Step3 = d.Get("maturity_step3").(int)
 	ps.Maturity.Step4 = d.Get("maturity_step4").(int)
 	ps.Maturity.Step5 = d.Get("maturity_step5").(int)
+
+	//Measures
+
+	measures := d.Get("measure").(*schema.Set).List()
+	measureMap := make(map[string]zerotrust.MeasureState)
+
+	for _, mRaw := range measures {
+		m := mRaw.(map[string]any)
+
+		assignment := zerotrust.Assignment{
+			Assigned:                 m["assigned"].(bool),
+			LastDeterminedByPersonID: m["assigned_by"].(string),
+			LastDeterminedTimestamp:  int(time.Now().Unix()),
+		}
+
+		implementation := zerotrust.Implementation{
+			Implemented:              m["implemented"].(bool),
+			LastDeterminedByPersonID: m["implemented_by"].(string),
+			LastDeterminedTimestamp:  int(time.Now().Unix()),
+		}
+
+		evidence := zerotrust.Evidence{
+			Evidenced:                m["evidenced"].(bool),
+			LastDeterminedByPersonID: m["evidenced_by"].(string),
+			LastDeterminedTimestamp:  int(time.Now().Unix()),
+		}
+
+		measureMap[m["type"].(string)] = zerotrust.MeasureState{
+			Assignment:     &assignment,
+			Implementation: &implementation,
+			Evidence:       &evidence,
+		}
+	}
+
+	ps.Measures = measureMap
 
 	result, err := apiClient.ZeroTrust.CreateProtectSurfaceByObject(*ps, false)
 
@@ -254,6 +338,12 @@ func resourceProtectSurfaceRead(ctx context.Context, d *schema.ResourceData, m i
 	d.Set("maturity_step3", ps.Maturity.Step3)
 	d.Set("maturity_step4", ps.Maturity.Step4)
 	d.Set("maturity_step5", ps.Maturity.Step5)
+
+	//Measures
+	flattenedMeasures := flattenMeasures(ps.Measures)
+	if err := d.Set("measure", flattenedMeasures); err != nil {
+		return diag.Errorf("error setting measure: %v", err)
+	}
 
 	return diags
 }
@@ -343,6 +433,56 @@ func resourceProtectSurfaceUpdate(ctx context.Context, d *schema.ResourceData, m
 		ps.Maturity.Step5 = d.Get("maturity_step5").(int)
 	}
 
+	//Measures //TODO would be nice to have a has-change per item per measure
+	if d.HasChange("measure") {
+		measureMap := make(map[string]zerotrust.MeasureState)
+		measures := d.Get("measure").(*schema.Set).List()
+
+		for _, mRaw := range measures {
+			m := mRaw.(map[string]any)
+
+			assignment := zerotrust.Assignment{
+				Assigned:                 m["assigned"].(bool),
+				LastDeterminedByPersonID: m["assigned_by"].(string),
+			}
+
+			if ps.Measures[m["type"].(string)].Assignment.Assigned != m["assigned"].(bool) {
+				assignment.LastDeterminedTimestamp = int(time.Now().Unix())
+			} else {
+				assignment.LastDeterminedTimestamp = ps.Measures[m["type"].(string)].Assignment.LastDeterminedTimestamp
+			}
+
+			implementation := zerotrust.Implementation{
+				Implemented:              m["implemented"].(bool),
+				LastDeterminedByPersonID: m["implemented_by"].(string),
+			}
+
+			if ps.Measures[m["type"].(string)].Implementation.Implemented != m["implemented"].(bool) {
+				implementation.LastDeterminedTimestamp = int(time.Now().Unix())
+			} else {
+				implementation.LastDeterminedTimestamp = ps.Measures[m["type"].(string)].Implementation.LastDeterminedTimestamp
+			}
+
+			evidence := zerotrust.Evidence{
+				Evidenced:                m["evidenced"].(bool),
+				LastDeterminedByPersonID: m["evidenced_by"].(string),
+			}
+
+			if ps.Measures[m["type"].(string)].Evidence.Evidenced != m["evidenced"].(bool) {
+				evidence.LastDeterminedTimestamp = int(time.Now().Unix())
+			} else {
+				evidence.LastDeterminedTimestamp = ps.Measures[m["type"].(string)].Evidence.LastDeterminedTimestamp
+			}
+
+			measureMap[m["type"].(string)] = zerotrust.MeasureState{
+				Assignment:     &assignment,
+				Implementation: &implementation,
+				Evidence:       &evidence,
+			}
+		}
+		ps.Measures = measureMap
+	}
+
 	_, err = apiClient.ZeroTrust.UpdateProtectSurface(*ps)
 
 	if err != nil {
@@ -367,4 +507,23 @@ func resourceProtectSurfaceDelete(ctx context.Context, d *schema.ResourceData, m
 	d.SetId("")
 
 	return diags
+}
+
+// Flatten Measures so it can be assigend to the resource
+func flattenMeasures(measures map[string]zerotrust.MeasureState) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0)
+	for k, m := range measures {
+
+		measure := make(map[string]interface{}, 7)
+		measure["type"] = k
+		measure["assigned"] = m.Assignment.Assigned
+		measure["assigned_by"] = m.Assignment.LastDeterminedByPersonID
+		measure["implemented"] = m.Implementation.Implemented
+		measure["implemented_by"] = m.Implementation.LastDeterminedByPersonID
+		measure["evidenced"] = m.Evidence.Evidenced
+		measure["evidenced_by"] = m.Evidence.LastDeterminedByPersonID
+
+		result = append(result, measure)
+	}
+	return result
 }
