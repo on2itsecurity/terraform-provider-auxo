@@ -29,3 +29,13 @@ func getAPIError(err error) apiError {
 	json.Unmarshal([]byte(cleanError), &apiErr)
 	return apiErr
 }
+
+// sliceContains checks if a string is in a slice of strings
+func sliceContains(slice []string, match string) bool {
+	for _, str := range slice {
+		if str == match {
+			return true
+		}
+	}
+	return false
+}

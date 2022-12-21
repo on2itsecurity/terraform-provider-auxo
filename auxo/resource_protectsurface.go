@@ -2,6 +2,7 @@ package auxo
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -248,8 +249,21 @@ func resourceProtectSurfaceCreate(ctx context.Context, d *schema.ResourceData, m
 	measures := d.Get("measure").(*schema.Set).List()
 	measureMap := make(map[string]zerotrust.MeasureState)
 
+	availableMeasures, _ := apiClient.ZeroTrust.GetMeasures()
+	availableMeasuresInSlice := make([]string, 0)
+	for _, mg := range availableMeasures.Groups {
+		for _, m := range mg.Measures {
+			availableMeasuresInSlice = append(availableMeasuresInSlice, m.Name)
+		}
+	}
+
 	for _, mRaw := range measures {
 		m := mRaw.(map[string]any)
+
+		//Check if measure exists
+		if !sliceContains(availableMeasuresInSlice, m["type"].(string)) {
+			return diag.Errorf("Measure %s does not exist, available measures [%s]", m["type"].(string), strings.Join(availableMeasuresInSlice, ","))
+		}
 
 		assignment := zerotrust.Assignment{
 			Assigned:                 m["assigned"].(bool),
@@ -434,12 +448,25 @@ func resourceProtectSurfaceUpdate(ctx context.Context, d *schema.ResourceData, m
 	}
 
 	//Measures //TODO would be nice to have a has-change per item per measure
+	availableMeasures, _ := apiClient.ZeroTrust.GetMeasures()
+	availableMeasuresInSlice := make([]string, 0)
+	for _, mg := range availableMeasures.Groups {
+		for _, m := range mg.Measures {
+			availableMeasuresInSlice = append(availableMeasuresInSlice, m.Name)
+		}
+	}
+
 	if d.HasChange("measure") {
 		measureMap := make(map[string]zerotrust.MeasureState)
 		measures := d.Get("measure").(*schema.Set).List()
 
 		for _, mRaw := range measures {
 			m := mRaw.(map[string]any)
+
+			//Check if measure exists
+			if !sliceContains(availableMeasuresInSlice, m["type"].(string)) {
+				return diag.Errorf("Measure %s does not exist, available measures [%s]", m["type"].(string), strings.Join(availableMeasuresInSlice, ","))
+			}
 
 			assignment := zerotrust.Assignment{
 				Assigned:                 m["assigned"].(bool),
