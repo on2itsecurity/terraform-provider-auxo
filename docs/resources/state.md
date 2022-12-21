@@ -28,13 +28,13 @@ resource "auxo_state" "ps_ad-loc_zaltbommel-ipv4" {
 ### Required
 
 - `content` (Set of String) Content of the state e.g. "10.1.1.2/32","10.1.1.3/32"
+- `description` (String) Description of the segment
 - `location_id` (String) Location ID
 - `protectsurface_id` (String) ProtectSurface ID
 
 ### Optional
 
 - `content_type` (String) Content type of the state i.e. static_ipv4, static_ipv6, azure_resource
-- `description` (String) Description of the segment
 - `exists_on_assets` (Set of String) Contains asset IDs which could match this state
 - `maintainer` (String) Maintainer of the state either api or portal_manual
 - `uniqueness_key` (String) Unique key to generate the ID - only needed for parallel import

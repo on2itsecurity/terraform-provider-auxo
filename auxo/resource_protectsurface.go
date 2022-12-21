@@ -2,6 +2,7 @@ package auxo
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
@@ -168,9 +169,8 @@ func resourceProtectSurface() *schema.Resource {
 						},
 						"assigned": {
 							Type:        schema.TypeBool,
-							Optional:    true,
+							Required:    true,
 							Description: "Is this measure assigned to the protect surface",
-							Default:     true,
 						},
 						"assigned_by": {
 							Type:        schema.TypeString,
@@ -181,7 +181,7 @@ func resourceProtectSurface() *schema.Resource {
 							Type:        schema.TypeBool,
 							Optional:    true,
 							Description: "Is this measure implemented to the protect surface",
-							Default:     true,
+							Default:     false,
 						},
 						"implemented_by": {
 							Type:        schema.TypeString,
@@ -192,7 +192,7 @@ func resourceProtectSurface() *schema.Resource {
 							Type:        schema.TypeBool,
 							Optional:    true,
 							Description: "Is there evidence that this measure is implemented",
-							Default:     true,
+							Default:     false,
 						},
 						"evidenced_by": {
 							Type:        schema.TypeString,
@@ -457,57 +457,73 @@ func resourceProtectSurfaceUpdate(ctx context.Context, d *schema.ResourceData, m
 	}
 
 	if d.HasChange("measure") {
-		measureMap := make(map[string]zerotrust.MeasureState)
+		changedMeasures := make(map[string]zerotrust.MeasureState)
 		measures := d.Get("measure").(*schema.Set).List()
 
+		//Limit drifting in set
 		for _, mRaw := range measures {
 			m := mRaw.(map[string]any)
-
-			//Check if measure exists
-			if !sliceContains(availableMeasuresInSlice, m["type"].(string)) {
-				return diag.Errorf("Measure %s does not exist, available measures [%s]", m["type"].(string), strings.Join(availableMeasuresInSlice, ","))
-			}
 
 			assignment := zerotrust.Assignment{
 				Assigned:                 m["assigned"].(bool),
 				LastDeterminedByPersonID: m["assigned_by"].(string),
-			}
-
-			if ps.Measures[m["type"].(string)].Assignment.Assigned != m["assigned"].(bool) {
-				assignment.LastDeterminedTimestamp = int(time.Now().Unix())
-			} else {
-				assignment.LastDeterminedTimestamp = ps.Measures[m["type"].(string)].Assignment.LastDeterminedTimestamp
+				LastDeterminedTimestamp:  int(time.Now().Unix()),
 			}
 
 			implementation := zerotrust.Implementation{
 				Implemented:              m["implemented"].(bool),
 				LastDeterminedByPersonID: m["implemented_by"].(string),
-			}
-
-			if ps.Measures[m["type"].(string)].Implementation.Implemented != m["implemented"].(bool) {
-				implementation.LastDeterminedTimestamp = int(time.Now().Unix())
-			} else {
-				implementation.LastDeterminedTimestamp = ps.Measures[m["type"].(string)].Implementation.LastDeterminedTimestamp
+				LastDeterminedTimestamp:  int(time.Now().Unix()),
 			}
 
 			evidence := zerotrust.Evidence{
 				Evidenced:                m["evidenced"].(bool),
 				LastDeterminedByPersonID: m["evidenced_by"].(string),
+				LastDeterminedTimestamp:  int(time.Now().Unix()),
 			}
 
-			if ps.Measures[m["type"].(string)].Evidence.Evidenced != m["evidenced"].(bool) {
-				evidence.LastDeterminedTimestamp = int(time.Now().Unix())
-			} else {
-				evidence.LastDeterminedTimestamp = ps.Measures[m["type"].(string)].Evidence.LastDeterminedTimestamp
-			}
-
-			measureMap[m["type"].(string)] = zerotrust.MeasureState{
+			changedMeasures[m["type"].(string)] = zerotrust.MeasureState{
 				Assignment:     &assignment,
 				Implementation: &implementation,
 				Evidence:       &evidence,
 			}
 		}
-		ps.Measures = measureMap
+
+		keys := []string{}
+		for k := range changedMeasures {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		//---
+
+		for _, k := range keys {
+
+			//Check if measure exists
+			if !sliceContains(availableMeasuresInSlice, k) {
+				return diag.Errorf("Measure %s does not exist, available measures [%s]", k, strings.Join(availableMeasuresInSlice, ","))
+			}
+
+			if ps.Measures[k].Assignment.Assigned != changedMeasures[k].Assignment.Assigned {
+				changedMeasures[k].Assignment.LastDeterminedTimestamp = int(time.Now().Unix())
+			} else {
+				changedMeasures[k].Assignment.LastDeterminedTimestamp = ps.Measures[k].Assignment.LastDeterminedTimestamp
+			}
+
+			if ps.Measures[k].Implementation.Implemented != changedMeasures[k].Implementation.Implemented {
+				changedMeasures[k].Implementation.LastDeterminedTimestamp = int(time.Now().Unix())
+			} else {
+				changedMeasures[k].Implementation.LastDeterminedTimestamp = ps.Measures[k].Implementation.LastDeterminedTimestamp
+			}
+
+			if ps.Measures[k].Evidence.Evidenced != changedMeasures[k].Evidence.Evidenced {
+				changedMeasures[k].Evidence.LastDeterminedTimestamp = int(time.Now().Unix())
+			} else {
+				changedMeasures[k].Evidence.LastDeterminedTimestamp = ps.Measures[k].Evidence.LastDeterminedTimestamp
+			}
+
+		}
+		ps.Measures = changedMeasures
+
 	}
 
 	_, err = apiClient.ZeroTrust.UpdateProtectSurface(*ps)
@@ -539,16 +555,24 @@ func resourceProtectSurfaceDelete(ctx context.Context, d *schema.ResourceData, m
 // Flatten Measures so it can be assigend to the resource
 func flattenMeasures(measures map[string]zerotrust.MeasureState) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0)
-	for k, m := range measures {
+
+	//Limit drifting in the set when read/update
+	keys := []string{}
+	for k := range measures {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
 
 		measure := make(map[string]interface{}, 7)
 		measure["type"] = k
-		measure["assigned"] = m.Assignment.Assigned
-		measure["assigned_by"] = m.Assignment.LastDeterminedByPersonID
-		measure["implemented"] = m.Implementation.Implemented
-		measure["implemented_by"] = m.Implementation.LastDeterminedByPersonID
-		measure["evidenced"] = m.Evidence.Evidenced
-		measure["evidenced_by"] = m.Evidence.LastDeterminedByPersonID
+		measure["assigned"] = measures[k].Assignment.Assigned
+		measure["assigned_by"] = measures[k].Assignment.LastDeterminedByPersonID
+		measure["implemented"] = measures[k].Implementation.Implemented
+		measure["implemented_by"] = measures[k].Implementation.LastDeterminedByPersonID
+		measure["evidenced"] = measures[k].Evidence.Evidenced
+		measure["evidenced_by"] = measures[k].Evidence.LastDeterminedByPersonID
 
 		result = append(result, measure)
 	}

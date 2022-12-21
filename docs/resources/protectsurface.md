@@ -64,6 +64,7 @@ resource "auxo_protectsurface" "ps_ad" {
 - `maturity_step3` (Number) maturity step 3 - architect your environment
 - `maturity_step4` (Number) maturity step 4 - zero trust policy
 - `maturity_step5` (Number) maturity step 5 - monitor and maintain
+- `measure` (Block Set) List of measures set for this protect surface (see [below for nested schema](#nestedblock--measure))
 - `relevance` (Number) Relevance 0-100 of the segment
 - `security_contact` (String) ID of security contact in text
 - `soc_tags` (Set of String) Contains tags, which are used by the SOC engineers
@@ -73,4 +74,70 @@ resource "auxo_protectsurface" "ps_ad" {
 
 - `id` (String) Unique ID of the resource/segment
 
+<a id="nestedblock--measure"></a>
+### Nested Schema for `measure`
 
+Contains the assigned, implemented and/or evidenced measure(s) status for this protect surface.
+
+#### Example Usage
+
+```hcl
+  measure {
+    type           = "flows-segmentation"
+    assigned       = true
+    assigned_by    = data.auxo_contact.rob.email
+    implemented    = false
+    implemented_by = data.auxo_contact.rob.email
+    evidenced      = false
+    evidenced_by   = data.auxo_contact.rob.email
+  }
+```
+
+#### Required:
+
+- `type` (String) type of the measure
+
+Current supported measures (`type`):
+
+- flows-segmentation
+- flows-restrict-outbound
+- flows-restrict-inbound
+- flows-appbased
+- flows-contentbased
+- flows-urlbased
+- flows-behavioral
+- endpoint-exploit
+- endpoint-malware
+- endpoint-ransomware
+- encryption-ssl-inbound-decryption
+- encryption-ssl-outbound-decryption
+- encryption-at-rest
+- encryption-in-transit
+- orchestrate-roe
+- threat-management-threat-intel
+- threat-management-vulnerability-management
+- ddos-volume
+- ddos-targeted
+- identity-centrally-managed
+- identity-rbac
+- identity-mfa
+- identity-auditable
+- secure-systems-software
+- secure-systems-hardware
+- secure-systems-updates
+- devsecops-securebuild
+- devsecops-supplychain
+- logging-central
+- data-backup
+- data-phishing
+- data-dlp
+- data-classification
+
+#### Optional:
+
+- `assigned` (Boolean) Is this measure assigned to the protect surface
+- `assigned_by` (String) Who assigned this measure to the protect surface
+- `evidenced` (Boolean) Is there evidence that this measure is implemented
+- `evidenced_by` (String) Who evidenced that this measure is implementd
+- `implemented` (Boolean) Is this measure implemented to the protect surface
+- `implemented_by` (String) Who implemented this measure to the protect surface

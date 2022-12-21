@@ -35,6 +35,17 @@ resource "auxo_protectsurface" "ps_ad" {
   soc_tags                 = ["active-directory", "windows"]
   allow_flows_from_outside = false
   allow_flows_to_outside   = false
+
+  // Represents the segmentation measure for this protect-surface
+  measure {
+    type           = "flows-segmentation"
+    assigned       = true
+    assigned_by    = data.auxo_contact.rob.email
+    implemented    = true
+    implemented_by = data.auxo_contact.rob.email
+    evidenced      = false
+    evidenced_by   = data.auxo_contact.rob.email    
+  }
 }
 
 // Represents transactionflows related to protect surface "Active Directory"
