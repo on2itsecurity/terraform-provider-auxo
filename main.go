@@ -1,11 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/on2itsecurity/terraform-provider-auxo/auxo"
 )
 
@@ -15,11 +15,16 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "set to true to run the provider with support for debuggers like delve")
 	flag.Parse()
 
-	plugin.Serve(&plugin.ServeOpts{
-		Debug:        debug,
-		ProviderAddr: "registry.terraform.io/on2itsecurity/auxo",
-		ProviderFunc: func() *schema.Provider {
-			return auxo.Provider()
+	err := providerserver.Serve(
+		context.Background(),
+		auxo.New,
+		providerserver.ServeOpts{
+			Debug:   debug,
+			Address: "registry.terraform.io/on2itsecurity/auxo",
 		},
-	})
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 }
