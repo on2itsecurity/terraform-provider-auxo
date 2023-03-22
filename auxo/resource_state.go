@@ -50,8 +50,8 @@ func resourceState() *schema.Resource {
 			},
 			"content_type": {
 				Type:        schema.TypeString,
-				Default:     "static_ipv4",
-				Description: "Content type of the state i.e. static_ipv4, static_ipv6, azure_resource",
+				Default:     "ipv4",
+				Description: "Content type of the state i.e. ipv4, ipv6, azure_cloud",
 				Optional:    true,
 			},
 			"exists_on_assets": {

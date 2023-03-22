@@ -14,8 +14,8 @@ A state contains resources and there location and belonging protect surface.
 
 ```hcl
 resource "auxo_state" "ps_ad-loc_zaltbommel-ipv4" {
-  content_type      = "static_ipv4"
-  description       = "Static IPv4 allocations of AD servers"
+  content_type      = "ipv4"
+  description       = "IPv4 allocations of AD servers"
   location_id       = auxo_location.loc_zaltbommel.id
   protectsurface_id = auxo_protectsurface.ps_ad.id
   content           = ["10.0.42.10", "10.0.42.11", "10.0.42.12"]
@@ -34,7 +34,7 @@ resource "auxo_state" "ps_ad-loc_zaltbommel-ipv4" {
 
 ### Optional
 
-- `content_type` (String) Content type of the state i.e. static_ipv4, static_ipv6, azure_resource
+- `content_type` (String) Content type of the state i.e. ipv4, ipv6, azure_cloud
 - `exists_on_assets` (Set of String) Contains asset IDs which could match this state
 - `maintainer` (String) Maintainer of the state either api or portal_manual
 - `uniqueness_key` (String) Unique key to generate the ID - only needed for parallel import
@@ -42,5 +42,18 @@ resource "auxo_state" "ps_ad-loc_zaltbommel-ipv4" {
 ### Read-Only
 
 - `id` (String) Unique ID of the resource/state
+
+### Content-Types
+
+| content type  | description                                           |
+| ------------- | ----------------------------------------------------- |
+| azure_cloud   | Contains Azure cloud resource IDs                     |
+| aws_cloud     | Contains AWS cloud resource IDs                       |
+| gcp_cloud     | Contains GCP cloud resource IDs                       |
+| container     | Contains container IDs                                |
+| hostname      | Contains hostnames                                    |
+| user_identity | Contains user identities; i.e. username and/or e-mail |
+| ipv4          | IPv4 address or CIDR i.e. `10.1.2.0/24`               |
+| ipv6          | IPv6 address or CIDR i.e. `2a02:fe9:692:2812/64`      |
 
 
