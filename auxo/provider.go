@@ -21,6 +21,7 @@ type auxoProvider struct{}
 type auxoProviderModel struct {
 	Url    types.String `tfsdk:"url"`
 	Token  types.String `tfsdk:"token"`
+	Name   types.String `tfsdk:"name"`
 	Config types.String `tfsdk:"config"`
 }
 
@@ -37,10 +38,15 @@ func (p *auxoProvider) Metadata(ctx context.Context, req provider.MetadataReques
 func (p *auxoProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"name": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "The alias in the ztctl configuration file, this takes precedence over the url and token attributes",
+				Description:         "The alias in the ztctl configuration file, this takes precedence over the url and token attributes",
+			},
 			"config": schema.StringAttribute{
 				Optional:            true,
-				MarkdownDescription: "The config of the ztctl configuration, this takes precedence over the url and token attributes",
-				Description:         "The config of the ztctl configuration, this takes precedence over the url and token attributes",
+				MarkdownDescription: "Location of the ztctl configuration file, will default to `~/.ztctl/config.json`",
+				Description:         "Location of the ztctl configuration file, will default to `~/.ztctl/config.json`",
 			},
 			"url": schema.StringAttribute{
 				Optional:            true,
@@ -59,8 +65,10 @@ func (p *auxoProvider) Schema(ctx context.Context, req provider.SchemaRequest, r
 
 func (p *auxoProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	//Default or environment variables
+	// checkov:skip=CKV_SECRET_6: False/Positive
 	token := os.Getenv("AUXO_TOKEN")
 	url := "api.on2it.net"
+	config := getDefaultConfigLocation()
 
 	var data auxoProviderModel
 
@@ -78,8 +86,25 @@ func (p *auxoProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 	}
 
 	if data.Config.ValueString() != "" {
+		config = data.Config.ValueString()
+	}
+
+	if data.Name.ValueString() != "" {
+		alias := data.Name.ValueString()
+
 		//Read configuration and set url and token
-		//TODO Read config configuration and set variables
+		cfg, err := getConfig(config, alias)
+
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to read configuration file",
+				"An unexpected error occurred when reading the configuration file. "+
+					"client error: "+err.Error())
+		}
+
+		//Find specific alias and set url and token
+		url = cfg.APIAddress
+		token = cfg.Token
 	}
 
 	//Error checking
@@ -126,65 +151,3 @@ func (p *auxoProvider) DataSources(ctx context.Context) []func() datasource.Data
 		NewcontactDataSource,
 	}
 }
-
-// // AuxoProvider represents the Auxo provider
-// type AuxoProvider struct {
-// 	APIClient *auxo.Client
-// }
-
-// // Provider -
-// func Provider() *schema.Provider {
-// 	return &schema.Provider{
-// 		Schema: map[string]*schema.Schema{
-// 			"url": {
-// 				Type:     schema.TypeString,
-// 				Optional: true,
-// 				Default:  "api.on2it.net",
-// 			},
-// 			"token": {
-// 				Type:        schema.TypeString,
-// 				Required:    true,
-// 				Sensitive:   true,
-// 				DefaultFunc: schema.EnvDefaultFunc("AUXOTOKEN", ""),
-// 			},
-// 		},
-// 		DataSourcesMap: map[string]*schema.Resource{
-// 			"auxo_contact": dataSourceContact(),
-// 		},
-// 		ResourcesMap: map[string]*schema.Resource{
-// 			"auxo_location":        resourceLocation(),
-// 			"auxo_protectsurface":  resourceProtectSurface(),
-// 			"auxo_state":           resourceState(),
-// 			"auxo_transactionflow": resourceTransactionFlow(),
-// 		},
-// 		ConfigureContextFunc: providerConfigure,
-// 	}
-// }
-
-// func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-// 	url := d.Get("url").(string)
-// 	token := d.Get("token").(string)
-
-// 	// Warning or errors can be collected in a slice type
-// 	var diags diag.Diagnostics
-
-// 	if token != "" {
-// 		client, err := auxo.NewClient(url, token, false)
-// 		if err != nil {
-// 			return nil, diag.FromErr(err)
-// 		}
-
-// 		provider := new(AuxoProvider)
-// 		provider.APIClient = client
-
-// 		return provider, diags
-// 	}
-
-// 	diags = append(diags, diag.Diagnostic{
-// 		Severity: diag.Error,
-// 		Summary:  "No token specified.",
-// 		Detail:   "Please set the token in the configuration or as environment variable AUXOTOKEN.",
-// 	})
-
-// 	return nil, diags //Will never be hit
-// }

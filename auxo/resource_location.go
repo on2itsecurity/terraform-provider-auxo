@@ -5,6 +5,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/on2itsecurity/go-auxo"
 	"github.com/on2itsecurity/go-auxo/zerotrust"
@@ -50,13 +53,22 @@ func (r *locationResource) Schema(ctx context.Context, req resource.SchemaReques
 			"id": schema.StringAttribute{
 				Description:         "Computed unique ID of the resource location",
 				MarkdownDescription: "Computed unique ID of the resource location",
+				Required:            false,
+				Optional:            false,
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"uniqueness_key": schema.StringAttribute{
 				Description:         "Custom and optinal uniqueness key to identify the resource location",
 				MarkdownDescription: "Custom and optinal uniqueness key to identify the resource location",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplaceIfConfigured(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Description:         "Name of the resource location",
@@ -67,11 +79,15 @@ func (r *locationResource) Schema(ctx context.Context, req resource.SchemaReques
 				Description:         "Latitude of the resource location",
 				MarkdownDescription: "Latitude of the resource location",
 				Optional:            true,
+				Computed:            true,
+				Default:             float64default.StaticFloat64(0),
 			},
 			"longitude": schema.Float64Attribute{
 				Description:         "Longitude of the resource location",
 				MarkdownDescription: "Longitude of the resource location",
 				Optional:            true,
+				Computed:            true,
+				Default:             float64default.StaticFloat64(0),
 			},
 		},
 	}
@@ -134,13 +150,19 @@ func (r *locationResource) Read(ctx context.Context, req resource.ReadRequest, r
 	// Get refreshed location from AUXO
 	result, err := r.client.ZeroTrust.GetLocationByID(location.ID.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error reading location", "unexpected error: "+err.Error())
-		return
+		apiError := getAPIError(err)
+
+		if apiError.ID == "410" { // Location not found and probably deleted
+			resp.State.RemoveResource(ctx)
+			return
+		} else {
+			resp.Diagnostics.AddError("Error reading location", "unexpected error: "+err.Error())
+			return
+		}
 	}
 
 	//Overwrite state with refreshed location
-	//ID cannot have changed
-	location.Uniqueness_key = types.StringValue(result.UniquenessKey)
+	//ID and UK cannot have changed
 	location.Name = types.StringValue(result.Name)
 	location.Latitude = types.Float64Value(result.Coords.Latitude)
 	location.Longitude = types.Float64Value(result.Coords.Longitude)
@@ -155,9 +177,11 @@ func (r *locationResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 func (r *locationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	//Retrieve values from plan
-	var plan locationResourceModel
+	var plan, state locationResourceModel
 
 	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	diags = req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 
 	if resp.Diagnostics.HasError() {
