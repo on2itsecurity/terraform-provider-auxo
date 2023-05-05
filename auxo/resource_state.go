@@ -105,6 +105,8 @@ func (r *stateResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Description:         "Maintainer of the state either api or portal_manual",
 				MarkdownDescription: "Maintainer of the state either api or portal_manual",
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("api_terraform"),
 			},
 			"content": schema.SetAttribute{
 				Description:         "Content of the state e.g. \"10.1.1.2/32\",\"10.1.1.3/32\"",
@@ -127,19 +129,9 @@ func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	// Get content
-	var content []string
-	for _, c := range plan.Content {
-		content = append(content, c.String())
-	}
-
-	// Get assets
-	var assets []string
-	for _, a := range plan.ExistsOnAssets {
-		assets = append(assets, a.String())
-	}
-
 	// Create state (object)
+	assets := getSliceFromSetOfString(plan.ExistsOnAssets)
+	content := getSliceFromSetOfString(plan.Content)
 	state := zerotrust.State{
 		ID:               plan.ID.ValueString(),
 		UniquenessKey:    plan.Uniqueness_key.ValueString(),
@@ -157,6 +149,7 @@ func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, 
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating state", "unexpected error: "+err.Error())
+		return
 	}
 
 	// Map resonse to schema
@@ -166,13 +159,9 @@ func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.Protectsurface = types.StringValue(result.ProtectSurface)
 	plan.Location = types.StringValue(result.Location)
 	plan.ContentType = types.StringValue(result.ContentType)
-	for _, a := range result.ExistsOnAssetIDs {
-		plan.ExistsOnAssets = append(plan.ExistsOnAssets, types.StringValue(a))
-	}
+	plan.ExistsOnAssets = getSetOfStringFromSlice(result.ExistsOnAssetIDs)
 	plan.Maintainer = types.StringValue(result.Maintainer)
-	for _, c := range *result.Content {
-		plan.Content = append(plan.Content, types.StringValue(c))
-	}
+	plan.Content = getSetOfStringFromSlice(*result.Content)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -239,19 +228,9 @@ func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	// Get content
-	var content []string
-	for _, c := range plan.Content {
-		content = append(content, c.String())
-	}
-
-	// Get assets
-	var assets []string
-	for _, a := range plan.ExistsOnAssets {
-		assets = append(assets, a.String())
-	}
-
 	// Create state (object)
+	assets := getSliceFromSetOfString(plan.ExistsOnAssets)
+	content := getSliceFromSetOfString(plan.Content)
 	state := zerotrust.State{
 		ID:               plan.ID.ValueString(),
 		UniquenessKey:    plan.Uniqueness_key.ValueString(),
@@ -278,13 +257,9 @@ func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	plan.Protectsurface = types.StringValue(result.ProtectSurface)
 	plan.Location = types.StringValue(result.Location)
 	plan.ContentType = types.StringValue(result.ContentType)
-	for _, a := range result.ExistsOnAssetIDs {
-		plan.ExistsOnAssets = append(plan.ExistsOnAssets, types.StringValue(a))
-	}
+	plan.ExistsOnAssets = getSetOfStringFromSlice(result.ExistsOnAssetIDs)
 	plan.Maintainer = types.StringValue(result.Maintainer)
-	for _, c := range *result.Content {
-		plan.Content = append(plan.Content, types.StringValue(c))
-	}
+	plan.Content = getSetOfStringFromSlice(*result.Content)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)

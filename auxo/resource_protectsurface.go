@@ -26,34 +26,34 @@ type protectsurfaceResource struct {
 }
 
 type protectsurfaceResourceModel struct {
-	ID                    types.String   `tfsdk:"id"`
-	Uniqueness_key        types.String   `tfsdk:"uniqueness_key"`
-	Name                  types.String   `tfsdk:"name"`
-	Description           types.String   `tfsdk:"description"`
-	MainContact           types.String   `tfsdk:"main_contact"`
-	SecurityContact       types.String   `tfsdk:"security_contact"`
-	InControlBoundary     types.Bool     `tfsdk:"in_control_boundary"`
-	InZeroTrustFocus      types.Bool     `tfsdk:"in_zero_trust_focus"`
-	Relevance             types.Int64    `tfsdk:"relevance"`
-	Confidentiality       types.Int64    `tfsdk:"confidentiality"`
-	Integrity             types.Int64    `tfsdk:"integrity"`
-	Availability          types.Int64    `tfsdk:"availability"`
-	DataTags              []types.String `tfsdk:"data_tags"`
-	ComplianceTags        []types.String `tfsdk:"compliance_tags"`
-	CustomerLabels        types.Map      `tfsdk:"customer_labels"`
-	SOCTags               []types.String `tfsdk:"soc_tags"`
-	AllowFlowsFromOutside types.Bool     `tfsdk:"allow_flows_from_outside"`
-	AllowFlowsToOutside   types.Bool     `tfsdk:"allow_flows_to_outside"`
-	MaturityStep1         types.Int64    `tfsdk:"maturity_step1"`
-	MaturityStep2         types.Int64    `tfsdk:"maturity_step2"`
-	MaturityStep3         types.Int64    `tfsdk:"maturity_step3"`
-	MaturityStep4         types.Int64    `tfsdk:"maturity_step4"`
-	MaturityStep5         types.Int64    `tfsdk:"maturity_step5"`
-	Measures              []measure      `tfsdk:"measures"`
+	ID                    types.String       `tfsdk:"id"`
+	Uniqueness_key        types.String       `tfsdk:"uniqueness_key"`
+	Name                  types.String       `tfsdk:"name"`
+	Description           types.String       `tfsdk:"description"`
+	MainContact           types.String       `tfsdk:"main_contact"`
+	SecurityContact       types.String       `tfsdk:"security_contact"`
+	InControlBoundary     types.Bool         `tfsdk:"in_control_boundary"`
+	InZeroTrustFocus      types.Bool         `tfsdk:"in_zero_trust_focus"`
+	Relevance             types.Int64        `tfsdk:"relevance"`
+	Confidentiality       types.Int64        `tfsdk:"confidentiality"`
+	Integrity             types.Int64        `tfsdk:"integrity"`
+	Availability          types.Int64        `tfsdk:"availability"`
+	DataTags              []types.String     `tfsdk:"data_tags"`
+	ComplianceTags        []types.String     `tfsdk:"compliance_tags"`
+	CustomerLabels        types.Map          `tfsdk:"customer_labels"`
+	SOCTags               []types.String     `tfsdk:"soc_tags"`
+	AllowFlowsFromOutside types.Bool         `tfsdk:"allow_flows_from_outside"`
+	AllowFlowsToOutside   types.Bool         `tfsdk:"allow_flows_to_outside"`
+	MaturityStep1         types.Int64        `tfsdk:"maturity_step1"`
+	MaturityStep2         types.Int64        `tfsdk:"maturity_step2"`
+	MaturityStep3         types.Int64        `tfsdk:"maturity_step3"`
+	MaturityStep4         types.Int64        `tfsdk:"maturity_step4"`
+	MaturityStep5         types.Int64        `tfsdk:"maturity_step5"`
+	Measures              map[string]measure `tfsdk:"measures"`
 }
 
 type measure struct {
-	Measure               types.String `tfsdk:"measure"`
+	//Measure               types.String `tfsdk:"measure"`
 	Assigned              types.Bool   `tfsdk:"assigned"`
 	Assigned_by           types.String `tfsdk:"assigned_by"`
 	Assigned_timestamp    types.Int64  `tfsdk:"assigned_timestamp"`
@@ -248,20 +248,20 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 				Computed:            true,
 				Default:             int64default.StaticInt64(1),
 			},
-			"measures": schema.SetNestedAttribute{
+			"measures": schema.MapNestedAttribute{
 				Description:         "Measures of the resource protectsurface",
 				MarkdownDescription: "Measures of the resource protectsurface",
 				Optional:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"measure": schema.StringAttribute{
-							Description:         "Measure ID i.e. 'flows-segmentation'",
-							MarkdownDescription: "Measure ID i.e. 'flows-segmentation'",
-							Required:            true,
-							// Validators: []validator.String{
-							// 	stringvalidator.OneOf(r.getAvailableMeasures()...),
-							// }, //Doesn't work, because client is not initialized yet (configure)
-						},
+						// "measure": schema.StringAttribute{
+						// 	Description:         "Measure ID i.e. 'flows-segmentation'",
+						// 	MarkdownDescription: "Measure ID i.e. 'flows-segmentation'",
+						// 	Required:            true,
+						// 	// Validators: []validator.String{
+						// 	// 	stringvalidator.OneOf(r.getAvailableMeasures()...),
+						// 	// }, //Doesn't work, because client is not initialized yet (configure)
+						// },
 						"assigned": schema.BoolAttribute{
 							Description:         "Measure assigned to the protectsurface",
 							MarkdownDescription: "Measure assigned to the protectsurface",
@@ -271,6 +271,8 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 							Description:         "Who assigned this measure to the protectsurface",
 							MarkdownDescription: "Who assigned this measure to the protectsurface",
 							Optional:            true,
+							Computed:            true,
+							Default:             stringdefault.StaticString(""),
 						},
 						"assigned_timestamp": schema.Int64Attribute{
 							Description:         "When was this measure assigned to the protectsurface",
@@ -292,6 +294,8 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 							Description:         "Who implemented this measure to the protectsurface",
 							MarkdownDescription: "Who implemented this measure to the protectsurface",
 							Optional:            true,
+							Computed:            true,
+							Default:             stringdefault.StaticString(""),
 						},
 						"implemented_timestamp": schema.Int64Attribute{
 							Description:         "When was this measure implemented to the protectsurface",
@@ -313,6 +317,8 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 							Description:         "Who evidenced that this measure is implementd",
 							MarkdownDescription: "Who evidenced that this measure is implementd",
 							Optional:            true,
+							Computed:            true,
+							Default:             stringdefault.StaticString(""),
 						},
 						"evidenced_timestamp": schema.Int64Attribute{
 							Description:         "When was this measure evidenced",
@@ -386,12 +392,12 @@ func (r *protectsurfaceResource) Create(ctx context.Context, req resource.Create
 	measureMap := make(map[string]zerotrust.MeasureState, 0)
 
 	//Loop through measures
-	for _, m := range plan.Measures {
+	for k, m := range plan.Measures {
 
 		//Check if measure exists
-		if !sliceContains(r.getAvailableMeasures(), m.Measure.ValueString()) {
+		if !sliceContains(r.getAvailableMeasures(), k) {
 			resp.Diagnostics.AddError("Measure does not exists.",
-				"Messure ["+m.Measure.ValueString()+"] does not exist, available measures ["+strings.Join(r.getAvailableMeasures(), ",")+"]")
+				"Messure ["+k+"] does not exist, available measures ["+strings.Join(r.getAvailableMeasures(), ",")+"]")
 			return
 		}
 
@@ -434,7 +440,7 @@ func (r *protectsurfaceResource) Create(ctx context.Context, req resource.Create
 			LastDeterminedTimestamp:  evidenced_timestamp,
 		}
 
-		measureMap[m.Measure.ValueString()] = zerotrust.MeasureState{
+		measureMap[k] = zerotrust.MeasureState{
 			Assignment:     &assignment,
 			Implementation: &implementation,
 			Evidence:       &evidence,
@@ -607,12 +613,12 @@ func (r *protectsurfaceResource) Update(ctx context.Context, req resource.Update
 	measureMap := make(map[string]zerotrust.MeasureState, 0)
 
 	//Loop through measures
-	for _, m := range plan.Measures {
+	for k, m := range plan.Measures {
 
 		//Check if measure exists
-		if !sliceContains(r.getAvailableMeasures(), m.Measure.ValueString()) {
+		if !sliceContains(r.getAvailableMeasures(), k) {
 			resp.Diagnostics.AddError("Measure does not exists.",
-				"Messure ["+m.Measure.ValueString()+"] does not exist, available measures ["+strings.Join(r.getAvailableMeasures(), ",")+"]")
+				"Messure ["+k+"] does not exist, available measures ["+strings.Join(r.getAvailableMeasures(), ",")+"]")
 			return
 		}
 
@@ -655,7 +661,7 @@ func (r *protectsurfaceResource) Update(ctx context.Context, req resource.Update
 			LastDeterminedTimestamp:  evidenced_timestamp,
 		}
 
-		measureMap[m.Measure.ValueString()] = zerotrust.MeasureState{
+		measureMap[k] = zerotrust.MeasureState{
 			Assignment:     &assignment,
 			Implementation: &implementation,
 			Evidence:       &evidence,
@@ -737,12 +743,12 @@ func (r *protectsurfaceResource) getAvailableMeasures() []string {
 	return availableMeasuresInSlice
 }
 
-func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) *[]measure {
-	measures := make([]measure, 0, len(measureMap))
+func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) *map[string]measure {
+	measures := make(map[string]measure, len(measureMap))
 
-	for m, state := range measureMap {
-		measures = append(measures, measure{
-			Measure:               types.StringValue(m),
+	for k, state := range measureMap {
+		measures[k] = measure{
+			//Measure:               types.StringValue(m),
 			Assigned:              types.BoolValue(state.Assignment.Assigned),
 			Assigned_by:           types.StringValue(state.Assignment.LastDeterminedByPersonID),
 			Assigned_timestamp:    types.Int64Value(int64(state.Assignment.LastDeterminedTimestamp)),
@@ -752,7 +758,7 @@ func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) *[]measure
 			Evidenced:             types.BoolValue(state.Evidence.Evidenced),
 			Evidenced_by:          types.StringValue(state.Evidence.LastDeterminedByPersonID),
 			Evidenced_timestamp:   types.Int64Value(int64(state.Evidence.LastDeterminedTimestamp)),
-		})
+		}
 	}
 
 	return &measures
@@ -780,7 +786,7 @@ func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) *[]measure
 // 			LastDeterminedTimestamp:  int(m.Evidenced_timestamp.ValueInt64()),
 // 		}
 
-// 		measureMap[m.Measure.ValueString()] = zerotrust.MeasureState{
+// 		measureMap[k] = zerotrust.MeasureState{
 // 			Assignment:     &assignment,
 // 			Implementation: &implementation,
 // 			Evidence:       &evidence,

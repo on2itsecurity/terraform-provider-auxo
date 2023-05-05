@@ -66,7 +66,7 @@ func (r *locationResource) Schema(ctx context.Context, req resource.SchemaReques
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplaceIfConfigured(),
+					stringplanmodifier.RequiresReplace(),
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
@@ -120,6 +120,7 @@ func (r *locationResource) Create(ctx context.Context, req resource.CreateReques
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating location", "unexpected error: "+err.Error())
+		return
 	}
 
 	// Map resonse to schema
