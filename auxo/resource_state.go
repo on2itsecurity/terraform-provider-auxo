@@ -5,6 +5,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/on2itsecurity/go-auxo"
 	"github.com/on2itsecurity/go-auxo/zerotrust"
@@ -53,13 +56,22 @@ func (r *stateResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"id": schema.StringAttribute{
 				Description:         "Computed unique ID of the resource state",
 				MarkdownDescription: "Computed unique ID of the resource state",
+				Required:            false,
+				Optional:            false,
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"uniqueness_key": schema.StringAttribute{
 				Description:         "Custom and optinal uniqueness key to identify the resource state",
 				MarkdownDescription: "Custom and optinal uniqueness key to identify the resource state",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Description:         "Description of the resource state",
@@ -80,7 +92,8 @@ func (r *stateResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Description:         "Content type of the state i.e. ipv4, ipv6, azure_resource",
 				MarkdownDescription: "Content type of the state i.e. ipv4, ipv6, azure_resource",
 				Optional:            true,
-				//Validators:        //TODO
+				Computed:            true,
+				Default:             stringdefault.StaticString("ipv4"),
 			},
 			"exists_on_assets": schema.SetAttribute{
 				Description:         "Contains asset IDs which could match this state",
@@ -182,13 +195,19 @@ func (r *stateResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	// Get refreshed state from AUXO
 	result, err := r.client.ZeroTrust.GetStateByID(state.ID.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error reading state", "unexpected error: "+err.Error())
-		return
+		apiError := getAPIError(err)
+
+		if apiError.ID == "410" { // Location not found and probably deleted
+			resp.State.RemoveResource(ctx)
+			return
+		} else {
+			resp.Diagnostics.AddError("Error reading location", "unexpected error: "+err.Error())
+			return
+		}
 	}
 
 	//Overwrite state with refreshed state
-	//ID cannot have changed
-	state.Uniqueness_key = types.StringValue(result.UniquenessKey)
+	//ID and UK cannot have changed
 	state.Description = types.StringValue(result.Description)
 	state.Protectsurface = types.StringValue(result.ProtectSurface)
 	state.Location = types.StringValue(result.Location)
