@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -191,7 +191,9 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 				Optional:            true,
 				Computed:            true,
 				ElementType:         types.StringType,
-				Default:             mapdefault.StaticValue(types.MapUnknown(types.StringType)),
+				PlanModifiers: []planmodifier.Map{
+					mapplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"soc_tags": schema.SetAttribute{
 				Description:         "Soc tags of the resource protectsurface",
@@ -254,14 +256,6 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 				Optional:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						// "measure": schema.StringAttribute{
-						// 	Description:         "Measure ID i.e. 'flows-segmentation'",
-						// 	MarkdownDescription: "Measure ID i.e. 'flows-segmentation'",
-						// 	Required:            true,
-						// 	// Validators: []validator.String{
-						// 	// 	stringvalidator.OneOf(r.getAvailableMeasures()...),
-						// 	// }, //Doesn't work, because client is not initialized yet (configure)
-						// },
 						"assigned": schema.BoolAttribute{
 							Description:         "Measure assigned to the protectsurface",
 							MarkdownDescription: "Measure assigned to the protectsurface",
@@ -446,7 +440,9 @@ func (r *protectsurfaceResource) Create(ctx context.Context, req resource.Create
 			Evidence:       &evidence,
 		}
 	}
-
+	if len(measureMap) == 0 {
+		measureMap = nil
+	}
 	protectsurface.Measures = measureMap
 
 	//Create the protectsurface
@@ -488,7 +484,7 @@ func (r *protectsurfaceResource) Create(ctx context.Context, req resource.Create
 	plan.MaturityStep3 = types.Int64Value(int64(result.Maturity.Step3))
 	plan.MaturityStep4 = types.Int64Value(int64(result.Maturity.Step4))
 	plan.MaturityStep5 = types.Int64Value(int64(result.Maturity.Step5))
-	plan.Measures = *getMeasuresFromMap(result.Measures)
+	plan.Measures = getMeasuresFromMap(result.Measures)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -547,7 +543,7 @@ func (r *protectsurfaceResource) Read(ctx context.Context, req resource.ReadRequ
 	ps.MaturityStep3 = types.Int64Value(int64(result.Maturity.Step3))
 	ps.MaturityStep4 = types.Int64Value(int64(result.Maturity.Step4))
 	ps.MaturityStep5 = types.Int64Value(int64(result.Maturity.Step5))
-	ps.Measures = *getMeasuresFromMap(result.Measures)
+	ps.Measures = getMeasuresFromMap(result.Measures)
 
 	//Set refreshed state
 	diags = resp.State.Set(ctx, &ps)
@@ -668,6 +664,9 @@ func (r *protectsurfaceResource) Update(ctx context.Context, req resource.Update
 		}
 	}
 
+	if len(measureMap) == 0 {
+		measureMap = nil
+	}
 	protectsurface.Measures = measureMap
 
 	result, err := r.client.ZeroTrust.UpdateProtectSurface(protectsurface)
@@ -700,7 +699,7 @@ func (r *protectsurfaceResource) Update(ctx context.Context, req resource.Update
 	plan.MaturityStep3 = types.Int64Value(int64(result.Maturity.Step3))
 	plan.MaturityStep4 = types.Int64Value(int64(result.Maturity.Step4))
 	plan.MaturityStep5 = types.Int64Value(int64(result.Maturity.Step5))
-	plan.Measures = *getMeasuresFromMap(result.Measures)
+	plan.Measures = getMeasuresFromMap(result.Measures)
 
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -743,7 +742,11 @@ func (r *protectsurfaceResource) getAvailableMeasures() []string {
 	return availableMeasuresInSlice
 }
 
-func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) *map[string]measure {
+func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) map[string]measure {
+	if len(measureMap) == 0 {
+		return nil
+	}
+
 	measures := make(map[string]measure, len(measureMap))
 
 	for k, state := range measureMap {
@@ -761,7 +764,7 @@ func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) *map[strin
 		}
 	}
 
-	return &measures
+	return measures
 }
 
 // func getMapfromMeasures(measures []measure) map[string]zerotrust.MeasureState {

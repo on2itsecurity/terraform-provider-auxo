@@ -2,9 +2,15 @@
 terraform {
   required_providers {
     auxo = {
-      source = "on2itsecurity/auxo"
+      version = "0.0.6"
+      source  = "registry.terraform.io/on2itsecurity/auxo"
+      //source = "on2itsecurity/auxo"
     }
   }
+}
+
+provider "auxo" {
+  name = "tailspin"
 }
 
 // Get the contact based on the email address
@@ -37,25 +43,26 @@ resource "auxo_protectsurface" "ps_ad" {
   allow_flows_to_outside   = false
 
   // Represents the segmentation measure for this protect-surface
-  measure {
-    type           = "flows-segmentation"
-    assigned       = true
-    assigned_by    = data.auxo_contact.rob.email
-    implemented    = true
-    implemented_by = data.auxo_contact.rob.email
-    evidenced      = false
-    evidenced_by   = data.auxo_contact.rob.email    
+  measures = {
+    flows-segmentation = {
+      assigned       = true
+      assigned_by    = data.auxo_contact.rob.email
+      implemented    = true
+      implemented_by = data.auxo_contact.rob.email
+      evidenced      = false
+      evidenced_by   = data.auxo_contact.rob.email
+    }
   }
 }
 
 // Represents transactionflows related to protect surface "Active Directory"
-resource "auxo_transactionflow" "tf_ps_ad" {
-  protectsurface                 = auxo_protectsurface.ps_ad.id
-  incoming_protectsurfaces_allow = [auxo_protectsurface.ps_mail.id]
-  incoming_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
-  outgoing_protectsurfaces_allow = [auxo_protectsurface.ps_mail.id]
-  outgoing_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
-}
+# resource "auxo_transactionflow" "tf_ps_ad" {
+#   protectsurface                 = auxo_protectsurface.ps_ad.id
+#   incoming_protectsurfaces_allow = [auxo_protectsurface.ps_mail.id]
+#   incoming_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
+#   outgoing_protectsurfaces_allow = [auxo_protectsurface.ps_mail.id]
+#   outgoing_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
+# }
 
 // Represents protect-surface "Mail"
 resource "auxo_protectsurface" "ps_mail" {
@@ -83,13 +90,13 @@ resource "auxo_protectsurface" "ps_mail" {
 }
 
 // Represents transactionflows related to protect surface "Mail"
-resource "auxo_transactionflow" "tf_ps_mail" {
-  protectsurface                 = auxo_protectsurface.ps_mail.id
-  incoming_protectsurfaces_allow = [auxo_protectsurface.ps_ad.id]
-  incoming_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
-  outgoing_protectsurfaces_allow = [auxo_protectsurface.ps_ad.id]
-  outgoing_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
-}
+# resource "auxo_transactionflow" "tf_ps_mail" {
+#   protectsurface                 = auxo_protectsurface.ps_mail.id
+#   incoming_protectsurfaces_allow = [auxo_protectsurface.ps_ad.id]
+#   incoming_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
+#   outgoing_protectsurfaces_allow = [auxo_protectsurface.ps_ad.id]
+#   outgoing_protectsurfaces_block = [auxo_protectsurface.ps_guests.id]
+# }
 
 // Represents protect-surface "Guests"
 resource "auxo_protectsurface" "ps_guests" {

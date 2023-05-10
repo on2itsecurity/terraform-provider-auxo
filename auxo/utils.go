@@ -41,28 +41,6 @@ func getSetOfStringFromSlice(values []string) []basetypes.StringValue {
 	return result
 }
 
-// func convertTFMapToGo(m map[types.String]types.String) map[string]string {
-// 	if len(m) == 0 {
-// 		return nil
-// 	}
-// 	result := make(map[string]string)
-// 	for k, v := range m {
-// 		result[k.ValueString()] = v.ValueString()
-// 	}
-// 	return result
-// }
-
-// func convertGoMapToTF(m map[string]string) map[types.String]types.String {
-// 	if len(m) == 0 {
-// 		return nil
-// 	}
-// 	result := make(map[types.String]types.String)
-// 	for k, v := range m {
-// 		result[basetypes.NewStringValue(k)] = basetypes.NewStringValue(v)
-// 	}
-// 	return result
-// }
-
 // sliceContains checks if a string is in a slice of strings
 func sliceContains(slice []string, match string) bool {
 	for _, str := range slice {
