@@ -201,13 +201,9 @@ func (r *stateResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Protectsurface = types.StringValue(result.ProtectSurface)
 	state.Location = types.StringValue(result.Location)
 	state.ContentType = types.StringValue(result.ContentType)
-	for _, a := range result.ExistsOnAssetIDs {
-		state.ExistsOnAssets = append(state.ExistsOnAssets, types.StringValue(a))
-	}
+	state.ExistsOnAssets = getSetOfStringFromSlice(result.ExistsOnAssetIDs)
 	state.Maintainer = types.StringValue(result.Maintainer)
-	for _, c := range *result.Content {
-		state.Content = append(state.Content, types.StringValue(c))
-	}
+	state.Content = getSetOfStringFromSlice(*result.Content)
 
 	//Set refreshed state
 	diags = resp.State.Set(ctx, &state)
@@ -270,6 +266,7 @@ func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 }
+
 func (r *stateResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	// Retrieve values from state
 	var state stateResourceModel
