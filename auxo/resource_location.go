@@ -105,15 +105,7 @@ func (r *locationResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	// Create location (object)
-	location := zerotrust.Location{
-		ID:            plan.ID.ValueString(),
-		UniquenessKey: plan.Uniqueness_key.ValueString(),
-		Name:          plan.Name.ValueString(),
-		Coords: zerotrust.Coords{
-			Latitude:  plan.Latitude.ValueFloat64(),
-			Longitude: plan.Longitude.ValueFloat64(),
-		},
-	}
+	location := resourceModelToLocation(&plan)
 
 	// Create location (API)
 	result, err := r.client.ZeroTrust.CreateLocationByObject(location, false)
@@ -124,11 +116,7 @@ func (r *locationResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	// Map resonse to schema
-	plan.ID = types.StringValue(result.ID)
-	plan.Uniqueness_key = types.StringValue(result.UniquenessKey)
-	plan.Name = types.StringValue(result.Name)
-	plan.Latitude = types.Float64Value(result.Coords.Latitude)
-	plan.Longitude = types.Float64Value(result.Coords.Longitude)
+	plan = locationToResourceModel(result)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -163,10 +151,7 @@ func (r *locationResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 
 	//Overwrite state with refreshed location
-	//ID and UK cannot have changed
-	location.Name = types.StringValue(result.Name)
-	location.Latitude = types.Float64Value(result.Coords.Latitude)
-	location.Longitude = types.Float64Value(result.Coords.Longitude)
+	location = locationToResourceModel(result)
 
 	//Set refreshed state
 	diags = resp.State.Set(ctx, &location)
@@ -190,15 +175,7 @@ func (r *locationResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	// Create location (object)
-	location := zerotrust.Location{
-		ID:            plan.ID.ValueString(),
-		UniquenessKey: plan.Uniqueness_key.ValueString(),
-		Name:          plan.Name.ValueString(),
-		Coords: zerotrust.Coords{
-			Latitude:  plan.Latitude.ValueFloat64(),
-			Longitude: plan.Longitude.ValueFloat64(),
-		},
-	}
+	location := resourceModelToLocation(&plan)
 
 	// Update location (API)
 	result, err := r.client.ZeroTrust.UpdateLocation(location)
@@ -209,12 +186,7 @@ func (r *locationResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	// Update state
-	plan.ID = types.StringValue(result.ID)
-	plan.Uniqueness_key = types.StringValue(result.UniquenessKey)
-	plan.Name = types.StringValue(result.Name)
-	plan.Latitude = types.Float64Value(result.Coords.Latitude)
-	plan.Longitude = types.Float64Value(result.Coords.Longitude)
-
+	plan = locationToResourceModel(result)
 	diags = resp.State.Set(ctx, plan)
 
 	resp.Diagnostics.Append(diags...)
@@ -237,5 +209,29 @@ func (r *locationResource) Delete(ctx context.Context, req resource.DeleteReques
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting location", "unexpected error: "+err.Error())
 		return
+	}
+}
+
+// resourceModelToLocation maps the resource model to the zerotrust.location object
+func resourceModelToLocation(m *locationResourceModel) zerotrust.Location {
+	return zerotrust.Location{
+		ID:            m.ID.ValueString(),
+		UniquenessKey: m.Uniqueness_key.ValueString(),
+		Name:          m.Name.ValueString(),
+		Coords: zerotrust.Coords{
+			Latitude:  m.Latitude.ValueFloat64(),
+			Longitude: m.Longitude.ValueFloat64(),
+		},
+	}
+}
+
+// locationToResouceModel maps the zerotrust.location object to the resource model
+func locationToResourceModel(location *zerotrust.Location) locationResourceModel {
+	return locationResourceModel{
+		ID:             types.StringValue(location.ID),
+		Uniqueness_key: types.StringValue(location.UniquenessKey),
+		Name:           types.StringValue(location.Name),
+		Latitude:       types.Float64Value(location.Coords.Latitude),
+		Longitude:      types.Float64Value(location.Coords.Longitude),
 	}
 }

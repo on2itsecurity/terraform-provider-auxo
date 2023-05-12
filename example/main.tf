@@ -49,7 +49,7 @@ resource "auxo_protectsurface" "ps_ad" {
       implemented_by = data.auxo_contact.rob.email
       evidenced      = false
       evidenced_by   = data.auxo_contact.rob.email
-    }
+    } 
   }
 }
 

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -341,119 +342,16 @@ func (r *protectsurfaceResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	//Get slices from plan
-	dt := getSliceFromSetOfString(plan.DataTags)
-	ct := getSliceFromSetOfString(plan.ComplianceTags)
-	st := getSliceFromSetOfString(plan.SOCTags)
-	//Get map from plan
-	var cl map[string]string
-	types.Map.ElementsAs(plan.CustomerLabels, ctx, &cl, false)
+	protectsurface, d := resourceModelToProtectsurface(&plan, ctx, r)
 
-	//Create the protectsurface object
-	protectsurface := zerotrust.ProtectSurface{
-		ID:                      plan.ID.ValueString(),
-		UniquenessKey:           plan.Uniqueness_key.ValueString(),
-		Name:                    plan.Name.ValueString(),
-		Description:             plan.Description.ValueString(),
-		MainContactPersonID:     plan.MainContact.ValueString(),
-		SecurityContactPersonID: plan.SecurityContact.ValueString(),
-		InControlBoundary:       plan.InControlBoundary.ValueBool(),
-		InZeroTrustFocus:        plan.InZeroTrustFocus.ValueBool(),
-		Relevance:               int(plan.Relevance.ValueInt64()),
-		Confidentiality:         int(plan.Confidentiality.ValueInt64()),
-		Integrity:               int(plan.Integrity.ValueInt64()),
-		Availability:            int(plan.Availability.ValueInt64()),
-		DataTags:                dt,
-		ComplianceTags:          ct,
-		CustomerLabels:          cl,
-		SocTags:                 st,
-		FlowsFromOutside: zerotrust.Flow{
-			Allow: plan.AllowFlowsFromOutside.ValueBool(),
-		},
-		FlowsToOutside: zerotrust.Flow{
-			Allow: plan.AllowFlowsToOutside.ValueBool(),
-		},
-		Maturity: zerotrust.Maturity{
-			Step1: int(plan.MaturityStep1.ValueInt64()),
-			Step2: int(plan.MaturityStep2.ValueInt64()),
-			Step3: int(plan.MaturityStep3.ValueInt64()),
-			Step4: int(plan.MaturityStep4.ValueInt64()),
-			Step5: int(plan.MaturityStep5.ValueInt64()),
-		},
+	resp.Diagnostics.Append(d...)
+
+	if resp.Diagnostics.HasError() {
+		return
 	}
-
-	//Measures
-	measureMap := make(map[string]zerotrust.MeasureState, 0)
-
-	//Loop through measures
-	for k, m := range plan.Measures {
-
-		//Check if measure exists
-		if !sliceContains(r.getAvailableMeasures(), k) {
-			resp.Diagnostics.AddError("Measure does not exists.",
-				"Messure ["+k+"] does not exist, available measures ["+strings.Join(r.getAvailableMeasures(), ",")+"]")
-			return
-		}
-
-		var assigned_timestamp int
-		if !(m.Assigned_timestamp.IsUnknown() || m.Assigned_timestamp.IsNull()) {
-			assigned_timestamp = int(m.Assigned_timestamp.ValueInt64())
-		} else {
-			assigned_timestamp = int(time.Now().Unix())
-		}
-
-		assignment := zerotrust.Assignment{
-			Assigned:                 m.Assigned.ValueBool(),
-			LastDeterminedByPersonID: m.Assigned_by.ValueString(),
-			LastDeterminedTimestamp:  assigned_timestamp,
-		}
-
-		var implemented_timestamp int
-		if !(m.Implemented_timestamp.IsUnknown() || m.Implemented_timestamp.IsNull()) {
-			implemented_timestamp = int(m.Implemented_timestamp.ValueInt64())
-		} else {
-			implemented_timestamp = int(time.Now().Unix())
-		}
-
-		implementation := zerotrust.Implementation{
-			Implemented:              m.Implemented.ValueBool(),
-			LastDeterminedByPersonID: m.Implemented_by.ValueString(),
-			LastDeterminedTimestamp:  implemented_timestamp,
-		}
-
-		var evidenced_timestamp int
-		if !(m.Evidenced_timestamp.IsUnknown() || m.Evidenced_timestamp.IsNull()) {
-			evidenced_timestamp = int(m.Evidenced_timestamp.ValueInt64())
-		} else {
-			evidenced_timestamp = int(time.Now().Unix())
-		}
-
-		evidence := zerotrust.Evidence{
-			Evidenced:                m.Evidenced.ValueBool(),
-			LastDeterminedByPersonID: m.Evidenced_by.ValueString(),
-			LastDeterminedTimestamp:  evidenced_timestamp,
-		}
-
-		measureMap[k] = zerotrust.MeasureState{
-			Assignment:     &assignment,
-			Implementation: &implementation,
-			Evidence:       &evidence,
-		}
-	}
-	if len(measureMap) == 0 {
-		measureMap = nil
-	}
-	protectsurface.Measures = measureMap
 
 	//Create the protectsurface
 	result, err := r.client.ZeroTrust.CreateProtectSurfaceByObject(protectsurface, false)
-
-	// //DEBUG
-	// var prettyJSON bytes.Buffer
-	// byteOutput, _ := json.Marshal(protectsurface)
-	// json.Indent(&prettyJSON, byteOutput, "", "\t")
-	// resp.Diagnostics.AddError("PS", prettyJSON.String())
-	// //DEBUG
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating protect surface", "unexpected error: "+err.Error())
@@ -461,30 +359,7 @@ func (r *protectsurfaceResource) Create(ctx context.Context, req resource.Create
 	}
 
 	//Map response to schema
-	plan.ID = types.StringValue(result.ID)
-	plan.Uniqueness_key = types.StringValue(result.UniquenessKey)
-	plan.Name = types.StringValue(result.Name)
-	plan.Description = types.StringValue(result.Description)
-	plan.MainContact = types.StringValue(result.MainContactPersonID)
-	plan.SecurityContact = types.StringValue(result.SecurityContactPersonID)
-	plan.InControlBoundary = types.BoolValue(result.InControlBoundary)
-	plan.InZeroTrustFocus = types.BoolValue(result.InZeroTrustFocus)
-	plan.Relevance = types.Int64Value(int64(result.Relevance))
-	plan.Confidentiality = types.Int64Value(int64(result.Confidentiality))
-	plan.Integrity = types.Int64Value(int64(result.Integrity))
-	plan.Availability = types.Int64Value(int64(result.Availability))
-	plan.DataTags = getSetOfStringFromSlice(result.DataTags)
-	plan.ComplianceTags = getSetOfStringFromSlice(result.ComplianceTags)
-	plan.CustomerLabels, _ = types.MapValueFrom(ctx, types.StringType, result.CustomerLabels)
-	plan.SOCTags = getSetOfStringFromSlice(result.SocTags)
-	plan.AllowFlowsFromOutside = types.BoolValue(result.FlowsFromOutside.Allow)
-	plan.AllowFlowsToOutside = types.BoolValue(result.FlowsToOutside.Allow)
-	plan.MaturityStep1 = types.Int64Value(int64(result.Maturity.Step1))
-	plan.MaturityStep2 = types.Int64Value(int64(result.Maturity.Step2))
-	plan.MaturityStep3 = types.Int64Value(int64(result.Maturity.Step3))
-	plan.MaturityStep4 = types.Int64Value(int64(result.Maturity.Step4))
-	plan.MaturityStep5 = types.Int64Value(int64(result.Maturity.Step5))
-	plan.Measures = getMeasuresFromMap(result.Measures)
+	plan, _ = protectsurfaceToResourceModel(result, ctx)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -493,20 +368,19 @@ func (r *protectsurfaceResource) Create(ctx context.Context, req resource.Create
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
 }
 
 func (r *protectsurfaceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	// Get current state
-	var ps protectsurfaceResourceModel
-	diags := req.State.Get(ctx, &ps)
+	var state protectsurfaceResourceModel
+	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Get refreshed PS from AUXO
-	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(ps.ID.ValueString())
+	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.ID.ValueString())
 	if err != nil {
 		apiError := getAPIError(err)
 
@@ -520,33 +394,10 @@ func (r *protectsurfaceResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	//Overwrite state with refreshed PS
-	//Get map from state
-	//ID and UK cannot have changed
-	ps.Name = types.StringValue(result.Name)
-	ps.Description = types.StringValue(result.Description)
-	ps.MainContact = types.StringValue(result.MainContactPersonID)
-	ps.SecurityContact = types.StringValue(result.SecurityContactPersonID)
-	ps.InControlBoundary = types.BoolValue(result.InControlBoundary)
-	ps.InZeroTrustFocus = types.BoolValue(result.InZeroTrustFocus)
-	ps.Relevance = types.Int64Value(int64(result.Relevance))
-	ps.Confidentiality = types.Int64Value(int64(result.Confidentiality))
-	ps.Integrity = types.Int64Value(int64(result.Integrity))
-	ps.Availability = types.Int64Value(int64(result.Availability))
-	ps.DataTags = getSetOfStringFromSlice(result.DataTags)
-	ps.ComplianceTags = getSetOfStringFromSlice(result.ComplianceTags)
-	ps.CustomerLabels, _ = types.MapValueFrom(ctx, types.StringType, result.CustomerLabels)
-	ps.SOCTags = getSetOfStringFromSlice(result.SocTags)
-	ps.AllowFlowsFromOutside = types.BoolValue(result.FlowsFromOutside.Allow)
-	ps.AllowFlowsToOutside = types.BoolValue(result.FlowsToOutside.Allow)
-	ps.MaturityStep1 = types.Int64Value(int64(result.Maturity.Step1))
-	ps.MaturityStep2 = types.Int64Value(int64(result.Maturity.Step2))
-	ps.MaturityStep3 = types.Int64Value(int64(result.Maturity.Step3))
-	ps.MaturityStep4 = types.Int64Value(int64(result.Maturity.Step4))
-	ps.MaturityStep5 = types.Int64Value(int64(result.Maturity.Step5))
-	ps.Measures = getMeasuresFromMap(result.Measures)
+	state, _ = protectsurfaceToResourceModel(result, ctx)
 
 	//Set refreshed state
-	diags = resp.State.Set(ctx, &ps)
+	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -566,108 +417,13 @@ func (r *protectsurfaceResource) Update(ctx context.Context, req resource.Update
 		return
 	}
 
-	//Get slices from plan
-	dt := getSliceFromSetOfString(plan.DataTags)
-	ct := getSliceFromSetOfString(plan.ComplianceTags)
-	st := getSliceFromSetOfString(plan.SOCTags)
-	var cl map[string]string
-	types.Map.ElementsAs(plan.CustomerLabels, ctx, &cl, false)
+	protectsurface, d := resourceModelToProtectsurface(&plan, ctx, r)
 
-	//Create the protectsurface object
-	protectsurface := zerotrust.ProtectSurface{
-		ID:                      plan.ID.ValueString(),
-		UniquenessKey:           plan.Uniqueness_key.ValueString(),
-		Name:                    plan.Name.ValueString(),
-		Description:             plan.Description.ValueString(),
-		MainContactPersonID:     plan.MainContact.ValueString(),
-		SecurityContactPersonID: plan.SecurityContact.ValueString(),
-		InControlBoundary:       plan.InControlBoundary.ValueBool(),
-		InZeroTrustFocus:        plan.InZeroTrustFocus.ValueBool(),
-		Relevance:               int(plan.Relevance.ValueInt64()),
-		Confidentiality:         int(plan.Confidentiality.ValueInt64()),
-		Integrity:               int(plan.Integrity.ValueInt64()),
-		Availability:            int(plan.Availability.ValueInt64()),
-		DataTags:                dt,
-		ComplianceTags:          ct,
-		CustomerLabels:          cl,
-		SocTags:                 st,
-		FlowsFromOutside: zerotrust.Flow{
-			Allow: plan.AllowFlowsFromOutside.ValueBool(),
-		},
-		FlowsToOutside: zerotrust.Flow{
-			Allow: plan.AllowFlowsToOutside.ValueBool(),
-		},
-		Maturity: zerotrust.Maturity{
-			Step1: int(plan.MaturityStep1.ValueInt64()),
-			Step2: int(plan.MaturityStep2.ValueInt64()),
-			Step3: int(plan.MaturityStep3.ValueInt64()),
-			Step4: int(plan.MaturityStep4.ValueInt64()),
-			Step5: int(plan.MaturityStep5.ValueInt64()),
-		},
+	resp.Diagnostics.Append(d...)
+
+	if resp.Diagnostics.HasError() {
+		return
 	}
-
-	measureMap := make(map[string]zerotrust.MeasureState, 0)
-
-	//Loop through measures
-	for k, m := range plan.Measures {
-
-		//Check if measure exists
-		if !sliceContains(r.getAvailableMeasures(), k) {
-			resp.Diagnostics.AddError("Measure does not exists.",
-				"Messure ["+k+"] does not exist, available measures ["+strings.Join(r.getAvailableMeasures(), ",")+"]")
-			return
-		}
-
-		var assigned_timestamp int
-		if !(m.Assigned_timestamp.IsUnknown() || m.Assigned_timestamp.IsNull()) {
-			assigned_timestamp = int(m.Assigned_timestamp.ValueInt64())
-		} else {
-			assigned_timestamp = int(time.Now().Unix())
-		}
-
-		assignment := zerotrust.Assignment{
-			Assigned:                 m.Assigned.ValueBool(),
-			LastDeterminedByPersonID: m.Assigned_by.ValueString(),
-			LastDeterminedTimestamp:  assigned_timestamp,
-		}
-
-		var implemented_timestamp int
-		if !(m.Implemented_timestamp.IsUnknown() || m.Implemented_timestamp.IsNull()) {
-			implemented_timestamp = int(m.Implemented_timestamp.ValueInt64())
-		} else {
-			implemented_timestamp = int(time.Now().Unix())
-		}
-
-		implementation := zerotrust.Implementation{
-			Implemented:              m.Implemented.ValueBool(),
-			LastDeterminedByPersonID: m.Implemented_by.ValueString(),
-			LastDeterminedTimestamp:  implemented_timestamp,
-		}
-
-		var evidenced_timestamp int
-		if !(m.Evidenced_timestamp.IsUnknown() || m.Evidenced_timestamp.IsNull()) {
-			evidenced_timestamp = int(m.Evidenced_timestamp.ValueInt64())
-		} else {
-			evidenced_timestamp = int(time.Now().Unix())
-		}
-
-		evidence := zerotrust.Evidence{
-			Evidenced:                m.Evidenced.ValueBool(),
-			LastDeterminedByPersonID: m.Evidenced_by.ValueString(),
-			LastDeterminedTimestamp:  evidenced_timestamp,
-		}
-
-		measureMap[k] = zerotrust.MeasureState{
-			Assignment:     &assignment,
-			Implementation: &implementation,
-			Evidence:       &evidence,
-		}
-	}
-
-	if len(measureMap) == 0 {
-		measureMap = nil
-	}
-	protectsurface.Measures = measureMap
 
 	result, err := r.client.ZeroTrust.UpdateProtectSurface(protectsurface)
 
@@ -676,30 +432,7 @@ func (r *protectsurfaceResource) Update(ctx context.Context, req resource.Update
 		return
 	}
 
-	plan.ID = types.StringValue(result.ID)
-	plan.Uniqueness_key = types.StringValue(result.UniquenessKey)
-	plan.Name = types.StringValue(result.Name)
-	plan.Description = types.StringValue(result.Description)
-	plan.MainContact = types.StringValue(result.MainContactPersonID)
-	plan.SecurityContact = types.StringValue(result.SecurityContactPersonID)
-	plan.InControlBoundary = types.BoolValue(result.InControlBoundary)
-	plan.InZeroTrustFocus = types.BoolValue(result.InZeroTrustFocus)
-	plan.Relevance = types.Int64Value(int64(result.Relevance))
-	plan.Confidentiality = types.Int64Value(int64(result.Confidentiality))
-	plan.Integrity = types.Int64Value(int64(result.Integrity))
-	plan.Availability = types.Int64Value(int64(result.Availability))
-	plan.DataTags = getSetOfStringFromSlice(result.DataTags)
-	plan.ComplianceTags = getSetOfStringFromSlice(result.ComplianceTags)
-	plan.CustomerLabels, _ = types.MapValueFrom(ctx, types.StringType, result.CustomerLabels)
-	plan.SOCTags = getSetOfStringFromSlice(result.SocTags)
-	plan.AllowFlowsFromOutside = types.BoolValue(result.FlowsFromOutside.Allow)
-	plan.AllowFlowsToOutside = types.BoolValue(result.FlowsToOutside.Allow)
-	plan.MaturityStep1 = types.Int64Value(int64(result.Maturity.Step1))
-	plan.MaturityStep2 = types.Int64Value(int64(result.Maturity.Step2))
-	plan.MaturityStep3 = types.Int64Value(int64(result.Maturity.Step3))
-	plan.MaturityStep4 = types.Int64Value(int64(result.Maturity.Step4))
-	plan.MaturityStep5 = types.Int64Value(int64(result.Maturity.Step5))
-	plan.Measures = getMeasuresFromMap(result.Measures)
+	plan, _ = protectsurfaceToResourceModel(result, ctx)
 
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -767,34 +500,146 @@ func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) map[string
 	return measures
 }
 
-// func getMapfromMeasures(measures []measure) map[string]zerotrust.MeasureState {
-// 	measureMap := make(map[string]zerotrust.MeasureState, len(measures))
+// resourceModelToProtectsurface maps the resource model to the zerotrust.protectsurface object
+func resourceModelToProtectsurface(plan *protectsurfaceResourceModel, ctx context.Context, r *protectsurfaceResource) (zerotrust.ProtectSurface, diag.Diagnostics) {
+	var diag diag.Diagnostics
 
-// 	for _, m := range measures {
-// 		assignment := zerotrust.Assignment{
-// 			Assigned:                 m.Assigned.ValueBool(),
-// 			LastDeterminedByPersonID: m.Assigned_by.ValueString(),
-// 			LastDeterminedTimestamp:  int(m.Assigned_timestamp.ValueInt64()),
-// 		}
+	//Get slices from plan
+	dt := getSliceFromSetOfString(plan.DataTags)
+	ct := getSliceFromSetOfString(plan.ComplianceTags)
+	st := getSliceFromSetOfString(plan.SOCTags)
+	var cl map[string]string
+	types.Map.ElementsAs(plan.CustomerLabels, ctx, &cl, false)
 
-// 		implementation := zerotrust.Implementation{
-// 			Implemented:              m.Implemented.ValueBool(),
-// 			LastDeterminedByPersonID: m.Implemented_by.ValueString(),
-// 			LastDeterminedTimestamp:  int(m.Implemented_timestamp.ValueInt64()),
-// 		}
+	//Create the protectsurface object
+	protectsurface := zerotrust.ProtectSurface{
+		ID:                      plan.ID.ValueString(),
+		UniquenessKey:           plan.Uniqueness_key.ValueString(),
+		Name:                    plan.Name.ValueString(),
+		Description:             plan.Description.ValueString(),
+		MainContactPersonID:     plan.MainContact.ValueString(),
+		SecurityContactPersonID: plan.SecurityContact.ValueString(),
+		InControlBoundary:       plan.InControlBoundary.ValueBool(),
+		InZeroTrustFocus:        plan.InZeroTrustFocus.ValueBool(),
+		Relevance:               int(plan.Relevance.ValueInt64()),
+		Confidentiality:         int(plan.Confidentiality.ValueInt64()),
+		Integrity:               int(plan.Integrity.ValueInt64()),
+		Availability:            int(plan.Availability.ValueInt64()),
+		DataTags:                dt,
+		ComplianceTags:          ct,
+		CustomerLabels:          cl,
+		SocTags:                 st,
+		FlowsFromOutside: zerotrust.Flow{
+			Allow: plan.AllowFlowsFromOutside.ValueBool(),
+		},
+		FlowsToOutside: zerotrust.Flow{
+			Allow: plan.AllowFlowsToOutside.ValueBool(),
+		},
+		Maturity: zerotrust.Maturity{
+			Step1: int(plan.MaturityStep1.ValueInt64()),
+			Step2: int(plan.MaturityStep2.ValueInt64()),
+			Step3: int(plan.MaturityStep3.ValueInt64()),
+			Step4: int(plan.MaturityStep4.ValueInt64()),
+			Step5: int(plan.MaturityStep5.ValueInt64()),
+		},
+	}
 
-// 		evidence := zerotrust.Evidence{
-// 			Evidenced:                m.Evidenced.ValueBool(),
-// 			LastDeterminedByPersonID: m.Evidenced_by.ValueString(),
-// 			LastDeterminedTimestamp:  int(m.Evidenced_timestamp.ValueInt64()),
-// 		}
+	measureMap := make(map[string]zerotrust.MeasureState, 0)
 
-// 		measureMap[k] = zerotrust.MeasureState{
-// 			Assignment:     &assignment,
-// 			Implementation: &implementation,
-// 			Evidence:       &evidence,
-// 		}
-// 	}
+	//Loop through measures
+	for k, m := range plan.Measures {
 
-// 	return measureMap
-// }
+		//Check if measure exists
+		if !sliceContains(r.getAvailableMeasures(), k) {
+			diag.AddError("Measure does not exists.",
+				"Messure ["+k+"] does not exist, available measures ["+strings.Join(r.getAvailableMeasures(), ",")+"]")
+			return zerotrust.ProtectSurface{}, diag
+		}
+
+		var assigned_timestamp int
+		if !(m.Assigned_timestamp.IsUnknown() || m.Assigned_timestamp.IsNull()) {
+			assigned_timestamp = int(m.Assigned_timestamp.ValueInt64())
+		} else {
+			assigned_timestamp = int(time.Now().Unix())
+		}
+
+		assignment := zerotrust.Assignment{
+			Assigned:                 m.Assigned.ValueBool(),
+			LastDeterminedByPersonID: m.Assigned_by.ValueString(),
+			LastDeterminedTimestamp:  assigned_timestamp,
+		}
+
+		var implemented_timestamp int
+		if !(m.Implemented_timestamp.IsUnknown() || m.Implemented_timestamp.IsNull()) {
+			implemented_timestamp = int(m.Implemented_timestamp.ValueInt64())
+		} else {
+			implemented_timestamp = int(time.Now().Unix())
+		}
+
+		implementation := zerotrust.Implementation{
+			Implemented:              m.Implemented.ValueBool(),
+			LastDeterminedByPersonID: m.Implemented_by.ValueString(),
+			LastDeterminedTimestamp:  implemented_timestamp,
+		}
+
+		var evidenced_timestamp int
+		if !(m.Evidenced_timestamp.IsUnknown() || m.Evidenced_timestamp.IsNull()) {
+			evidenced_timestamp = int(m.Evidenced_timestamp.ValueInt64())
+		} else {
+			evidenced_timestamp = int(time.Now().Unix())
+		}
+
+		evidence := zerotrust.Evidence{
+			Evidenced:                m.Evidenced.ValueBool(),
+			LastDeterminedByPersonID: m.Evidenced_by.ValueString(),
+			LastDeterminedTimestamp:  evidenced_timestamp,
+		}
+
+		measureMap[k] = zerotrust.MeasureState{
+			Assignment:     &assignment,
+			Implementation: &implementation,
+			Evidence:       &evidence,
+		}
+	}
+
+	if len(measureMap) == 0 {
+		measureMap = nil
+	}
+	protectsurface.Measures = measureMap
+
+	return protectsurface, diag
+}
+
+// protectsurfaceToResourceModel maps the zerotrust.protectsurface object to the resource model
+func protectsurfaceToResourceModel(ps *zerotrust.ProtectSurface, ctx context.Context) (protectsurfaceResourceModel, diag.Diagnostics) {
+	cl, diag := types.MapValueFrom(ctx, types.StringType, ps.CustomerLabels)
+
+	psrm := protectsurfaceResourceModel{
+		ID:                    types.StringValue(ps.ID),
+		Uniqueness_key:        types.StringValue(ps.UniquenessKey),
+		Name:                  types.StringValue(ps.Name),
+		Description:           types.StringValue(ps.Description),
+		MainContact:           types.StringValue(ps.MainContactPersonID),
+		SecurityContact:       types.StringValue(ps.SecurityContactPersonID),
+		InControlBoundary:     types.BoolValue(ps.InControlBoundary),
+		InZeroTrustFocus:      types.BoolValue(ps.InZeroTrustFocus),
+		Relevance:             types.Int64Value(int64(ps.Relevance)),
+		Confidentiality:       types.Int64Value(int64(ps.Confidentiality)),
+		Integrity:             types.Int64Value(int64(ps.Integrity)),
+		Availability:          types.Int64Value(int64(ps.Availability)),
+		DataTags:              getSetOfStringFromSlice(ps.DataTags),
+		ComplianceTags:        getSetOfStringFromSlice(ps.ComplianceTags),
+		CustomerLabels:        cl,
+		SOCTags:               getSetOfStringFromSlice(ps.SocTags),
+		AllowFlowsFromOutside: types.BoolValue(ps.FlowsFromOutside.Allow),
+		AllowFlowsToOutside:   types.BoolValue(ps.FlowsToOutside.Allow),
+		MaturityStep1:         types.Int64Value(int64(ps.Maturity.Step1)),
+		MaturityStep2:         types.Int64Value(int64(ps.Maturity.Step2)),
+		MaturityStep3:         types.Int64Value(int64(ps.Maturity.Step3)),
+		MaturityStep4:         types.Int64Value(int64(ps.Maturity.Step4)),
+		MaturityStep5:         types.Int64Value(int64(ps.Maturity.Step5)),
+		Measures:              getMeasuresFromMap(ps.Measures),
+	}
+
+	return psrm, diag
+}
