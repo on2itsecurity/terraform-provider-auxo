@@ -130,19 +130,7 @@ func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Create state (object)
-	assets := getSliceFromSetOfString(plan.ExistsOnAssets)
-	content := getSliceFromSetOfString(plan.Content)
-	state := zerotrust.State{
-		ID:               plan.ID.ValueString(),
-		UniquenessKey:    plan.Uniqueness_key.ValueString(),
-		Description:      plan.Description.ValueString(),
-		ProtectSurface:   plan.Protectsurface.ValueString(),
-		Location:         plan.Location.ValueString(),
-		ContentType:      plan.ContentType.ValueString(),
-		ExistsOnAssetIDs: assets,
-		Maintainer:       plan.Maintainer.ValueString(),
-		Content:          &content,
-	}
+	state := resourceModelToState(&plan)
 
 	// Create state (API)
 	result, err := r.client.ZeroTrust.CreateStateByObject(state)
@@ -153,15 +141,7 @@ func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Map resonse to schema
-	plan.ID = types.StringValue(result.ID)
-	plan.Uniqueness_key = types.StringValue(result.UniquenessKey)
-	plan.Description = types.StringValue(result.Description)
-	plan.Protectsurface = types.StringValue(result.ProtectSurface)
-	plan.Location = types.StringValue(result.Location)
-	plan.ContentType = types.StringValue(result.ContentType)
-	plan.ExistsOnAssets = getSetOfStringFromSlice(result.ExistsOnAssetIDs)
-	plan.Maintainer = types.StringValue(result.Maintainer)
-	plan.Content = getSetOfStringFromSlice(*result.Content)
+	plan = stateToResourceModel(result)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -196,14 +176,7 @@ func (r *stateResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	//Overwrite state with refreshed state
-	//ID and UK cannot have changed
-	state.Description = types.StringValue(result.Description)
-	state.Protectsurface = types.StringValue(result.ProtectSurface)
-	state.Location = types.StringValue(result.Location)
-	state.ContentType = types.StringValue(result.ContentType)
-	state.ExistsOnAssets = getSetOfStringFromSlice(result.ExistsOnAssetIDs)
-	state.Maintainer = types.StringValue(result.Maintainer)
-	state.Content = getSetOfStringFromSlice(*result.Content)
+	state = stateToResourceModel(result)
 
 	//Set refreshed state
 	diags = resp.State.Set(ctx, &state)
@@ -225,19 +198,7 @@ func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	// Create state (object)
-	assets := getSliceFromSetOfString(plan.ExistsOnAssets)
-	content := getSliceFromSetOfString(plan.Content)
-	state := zerotrust.State{
-		ID:               plan.ID.ValueString(),
-		UniquenessKey:    plan.Uniqueness_key.ValueString(),
-		Description:      plan.Description.ValueString(),
-		ProtectSurface:   plan.Protectsurface.ValueString(),
-		Location:         plan.Location.ValueString(),
-		ContentType:      plan.ContentType.ValueString(),
-		ExistsOnAssetIDs: assets,
-		Maintainer:       plan.Maintainer.ValueString(),
-		Content:          &content,
-	}
+	state := resourceModelToState(&plan)
 
 	// Create state (API)
 	result, err := r.client.ZeroTrust.CreateStateByObject(state)
@@ -247,15 +208,7 @@ func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	// Map resonse to schema
-	plan.ID = types.StringValue(result.ID)
-	plan.Uniqueness_key = types.StringValue(result.UniquenessKey)
-	plan.Description = types.StringValue(result.Description)
-	plan.Protectsurface = types.StringValue(result.ProtectSurface)
-	plan.Location = types.StringValue(result.Location)
-	plan.ContentType = types.StringValue(result.ContentType)
-	plan.ExistsOnAssets = getSetOfStringFromSlice(result.ExistsOnAssetIDs)
-	plan.Maintainer = types.StringValue(result.Maintainer)
-	plan.Content = getSetOfStringFromSlice(*result.Content)
+	plan = stateToResourceModel(result)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -281,5 +234,38 @@ func (r *stateResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting state", "unexpected error: "+err.Error())
 		return
+	}
+}
+
+// resourceModelToState maps the resource model to the zerotrust.state object
+func resourceModelToState(m *stateResourceModel) zerotrust.State {
+	assets := getSliceFromSetOfString(m.ExistsOnAssets)
+	content := getSliceFromSetOfString(m.Content)
+	state := zerotrust.State{
+		ID:               m.ID.ValueString(),
+		UniquenessKey:    m.Uniqueness_key.ValueString(),
+		Description:      m.Description.ValueString(),
+		ProtectSurface:   m.Protectsurface.ValueString(),
+		Location:         m.Location.ValueString(),
+		ContentType:      m.ContentType.ValueString(),
+		ExistsOnAssetIDs: assets,
+		Maintainer:       m.Maintainer.ValueString(),
+		Content:          &content,
+	}
+	return state
+}
+
+// StateToResouceModel maps the zerotrust.state object to the resource model
+func stateToResourceModel(state *zerotrust.State) stateResourceModel {
+	return stateResourceModel{
+		ID:             types.StringValue(state.ID),
+		Uniqueness_key: types.StringValue(state.UniquenessKey),
+		Description:    types.StringValue(state.Description),
+		Protectsurface: types.StringValue(state.ProtectSurface),
+		Location:       types.StringValue(state.Location),
+		ContentType:    types.StringValue(state.ContentType),
+		ExistsOnAssets: getSetOfStringFromSlice(state.ExistsOnAssetIDs),
+		Maintainer:     types.StringValue(state.Maintainer),
+		Content:        getSetOfStringFromSlice(*state.Content),
 	}
 }
