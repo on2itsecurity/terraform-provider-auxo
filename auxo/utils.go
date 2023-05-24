@@ -25,7 +25,7 @@ func getAPIError(err error) apiError {
 
 // getSliceFromSetOfString converts a slice of basetypes.StringValue to a slice of string
 func getSliceFromSetOfString(values []basetypes.StringValue) []string {
-	var result []string
+	result := []string{}
 	for _, value := range values {
 		result = append(result, value.ValueString())
 	}
