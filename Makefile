@@ -6,7 +6,7 @@ BINARY=terraform-provider-${NAME}
 VERSION=0.0.5
 OS_ARCH=darwin_arm64 #amd64
 
-default: install
+default: build
 
 build:
 	go build -o ${BINARY}
