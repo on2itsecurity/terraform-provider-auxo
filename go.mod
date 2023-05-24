@@ -1,6 +1,6 @@
 module github.com/on2itsecurity/terraform-provider-auxo
 
-go 1.19
+go 1.20
 
 require github.com/on2itsecurity/go-auxo v1.0.3
 

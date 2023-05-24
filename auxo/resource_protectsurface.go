@@ -13,13 +13,16 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/on2itsecurity/go-auxo"
 	"github.com/on2itsecurity/go-auxo/zerotrust"
 )
 
+// var _ resource.ResourceWithModifyPlan = &protectsurfaceResource{}
 var _ resource.Resource = &protectsurfaceResource{}
 
 type protectsurfaceResource struct {
@@ -39,10 +42,10 @@ type protectsurfaceResourceModel struct {
 	Confidentiality       types.Int64        `tfsdk:"confidentiality"`
 	Integrity             types.Int64        `tfsdk:"integrity"`
 	Availability          types.Int64        `tfsdk:"availability"`
-	DataTags              []types.String     `tfsdk:"data_tags"`
-	ComplianceTags        []types.String     `tfsdk:"compliance_tags"`
+	DataTags              types.Set          `tfsdk:"data_tags"`
+	ComplianceTags        types.Set          `tfsdk:"compliance_tags"`
 	CustomerLabels        types.Map          `tfsdk:"customer_labels"`
-	SOCTags               []types.String     `tfsdk:"soc_tags"`
+	SOCTags               types.Set          `tfsdk:"soc_tags"`
 	AllowFlowsFromOutside types.Bool         `tfsdk:"allow_flows_from_outside"`
 	AllowFlowsToOutside   types.Bool         `tfsdk:"allow_flows_to_outside"`
 	MaturityStep1         types.Int64        `tfsdk:"maturity_step1"`
@@ -178,13 +181,21 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 				Description:         "Data tags of the resource protectsurface",
 				MarkdownDescription: "Data tags of the resource protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"compliance_tags": schema.SetAttribute{
 				Description:         "Compliance tags of the resource protectsurface",
 				MarkdownDescription: "Compliance tags of the resource protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"customer_labels": schema.MapAttribute{
 				Description:         "Customer labels of the resource protectsurface",
@@ -200,7 +211,11 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 				Description:         "Soc tags of the resource protectsurface",
 				MarkdownDescription: "Soc tags of the resource protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"allow_flows_from_outside": schema.BoolAttribute{
 				Description:         "Allow flows from outside of the protectsurface coming in",
@@ -503,11 +518,17 @@ func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) map[string
 // resourceModelToProtectsurface maps the resource model to the zerotrust.protectsurface object
 func resourceModelToProtectsurface(plan *protectsurfaceResourceModel, ctx context.Context, r *protectsurfaceResource) (zerotrust.ProtectSurface, diag.Diagnostics) {
 	var diag diag.Diagnostics
+	var st, dt, ct []string
 
-	//Get slices from plan
-	dt := getSliceFromSetOfString(plan.DataTags)
-	ct := getSliceFromSetOfString(plan.ComplianceTags)
-	st := getSliceFromSetOfString(plan.SOCTags)
+	if !plan.DataTags.IsNull() {
+		_ = plan.DataTags.ElementsAs(ctx, &dt, false)
+	}
+	if !plan.ComplianceTags.IsNull() {
+		_ = plan.ComplianceTags.ElementsAs(ctx, &ct, false)
+	}
+	if !plan.SOCTags.IsNull() {
+		_ = plan.SOCTags.ElementsAs(ctx, &st, false)
+	}
 	var cl map[string]string
 	types.Map.ElementsAs(plan.CustomerLabels, ctx, &cl, false)
 
@@ -614,6 +635,17 @@ func resourceModelToProtectsurface(plan *protectsurfaceResourceModel, ctx contex
 func protectsurfaceToResourceModel(ps *zerotrust.ProtectSurface, ctx context.Context) (protectsurfaceResourceModel, diag.Diagnostics) {
 	cl, diag := types.MapValueFrom(ctx, types.StringType, ps.CustomerLabels)
 
+	var st, dt, ct basetypes.SetValue
+	if ps.ComplianceTags != nil {
+		ct, _ = types.SetValueFrom(ctx, types.StringType, ps.ComplianceTags)
+	}
+	if ps.DataTags != nil {
+		dt, _ = types.SetValueFrom(ctx, types.StringType, ps.DataTags)
+	}
+	if ps.SocTags != nil {
+		st, _ = types.SetValueFrom(ctx, types.StringType, ps.SocTags)
+	}
+
 	psrm := protectsurfaceResourceModel{
 		ID:                    types.StringValue(ps.ID),
 		Uniqueness_key:        types.StringValue(ps.UniquenessKey),
@@ -627,10 +659,10 @@ func protectsurfaceToResourceModel(ps *zerotrust.ProtectSurface, ctx context.Con
 		Confidentiality:       types.Int64Value(int64(ps.Confidentiality)),
 		Integrity:             types.Int64Value(int64(ps.Integrity)),
 		Availability:          types.Int64Value(int64(ps.Availability)),
-		DataTags:              getSetOfStringFromSlice(ps.DataTags),
-		ComplianceTags:        getSetOfStringFromSlice(ps.ComplianceTags),
+		DataTags:              dt,
+		ComplianceTags:        ct,
 		CustomerLabels:        cl,
-		SOCTags:               getSetOfStringFromSlice(ps.SocTags),
+		SOCTags:               st,
 		AllowFlowsFromOutside: types.BoolValue(ps.FlowsFromOutside.Allow),
 		AllowFlowsToOutside:   types.BoolValue(ps.FlowsToOutside.Allow),
 		MaturityStep1:         types.Int64Value(int64(ps.Maturity.Step1)),
