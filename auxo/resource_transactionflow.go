@@ -19,11 +19,11 @@ type transactionflowResource struct {
 }
 
 type transactionflowResourceModel struct {
-	Protectsurface                 types.String   `tfsdk:"protectsurface"`
-	Incoming_protectsurfaces_allow []types.String `tfsdk:"incoming_protectsurfaces_allow"`
-	Incoming_protectsurfaces_block []types.String `tfsdk:"incoming_protectsurfaces_block"`
-	Outgoing_protectsurfaces_allow []types.String `tfsdk:"outgoing_protectsurfaces_allow"`
-	Outgoing_protectsurfaces_block []types.String `tfsdk:"outgoing_protectsurfaces_block"`
+	Protectsurface                 types.String `tfsdk:"protectsurface"`
+	Incoming_protectsurfaces_allow types.Set    `tfsdk:"incoming_protectsurfaces_allow"`
+	Incoming_protectsurfaces_block types.Set    `tfsdk:"incoming_protectsurfaces_block"`
+	Outgoing_protectsurfaces_allow types.Set    `tfsdk:"outgoing_protectsurfaces_allow"`
+	Outgoing_protectsurfaces_block types.Set    `tfsdk:"outgoing_protectsurfaces_block"`
 }
 
 type flows struct {
@@ -108,10 +108,10 @@ func (r *transactionflowResource) Create(ctx context.Context, req resource.Creat
 	}
 
 	var f flows
-	f.incomingPSAllow = plan.Incoming_protectsurfaces_allow
-	f.incomingPSBlock = plan.Incoming_protectsurfaces_block
-	f.outgoingPSAllow = plan.Outgoing_protectsurfaces_allow
-	f.outgoingPSBlock = plan.Outgoing_protectsurfaces_block
+	_ = plan.Incoming_protectsurfaces_allow.ElementsAs(ctx, &f.incomingPSAllow, false)
+	_ = plan.Incoming_protectsurfaces_block.ElementsAs(ctx, &f.incomingPSBlock, false)
+	_ = plan.Outgoing_protectsurfaces_allow.ElementsAs(ctx, &f.outgoingPSAllow, false)
+	_ = plan.Outgoing_protectsurfaces_block.ElementsAs(ctx, &f.outgoingPSBlock, false)
 
 	ps, err = setFlowsOnPS(ps, f)
 	if err != nil {
@@ -129,10 +129,10 @@ func (r *transactionflowResource) Create(ctx context.Context, req resource.Creat
 	// Map resonse to schema
 	plan.Protectsurface = types.StringValue(ps.ID)
 	f = readFlowsFromPS(ps)
-	plan.Incoming_protectsurfaces_allow = f.incomingPSAllow
-	plan.Incoming_protectsurfaces_block = f.incomingPSBlock
-	plan.Outgoing_protectsurfaces_allow = f.outgoingPSAllow
-	plan.Outgoing_protectsurfaces_block = f.outgoingPSBlock
+	plan.Incoming_protectsurfaces_allow, _ = types.SetValueFrom(ctx, types.StringType, f.incomingPSAllow)
+	plan.Incoming_protectsurfaces_block, _ = types.SetValueFrom(ctx, types.StringType, f.incomingPSBlock)
+	plan.Outgoing_protectsurfaces_allow, _ = types.SetValueFrom(ctx, types.StringType, f.outgoingPSAllow)
+	plan.Outgoing_protectsurfaces_block, _ = types.SetValueFrom(ctx, types.StringType, f.outgoingPSBlock)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -162,10 +162,10 @@ func (r *transactionflowResource) Read(ctx context.Context, req resource.ReadReq
 	//Overwrite state with refreshed state
 	f := readFlowsFromPS(result)
 	state.Protectsurface = types.StringValue(result.ID)
-	state.Incoming_protectsurfaces_allow = f.incomingPSAllow
-	state.Incoming_protectsurfaces_block = f.incomingPSBlock
-	state.Outgoing_protectsurfaces_allow = f.outgoingPSAllow
-	state.Outgoing_protectsurfaces_block = f.outgoingPSBlock
+	state.Incoming_protectsurfaces_allow, _ = types.SetValueFrom(ctx, types.StringType, f.incomingPSAllow)
+	state.Incoming_protectsurfaces_block, _ = types.SetValueFrom(ctx, types.StringType, f.incomingPSBlock)
+	state.Outgoing_protectsurfaces_allow, _ = types.SetValueFrom(ctx, types.StringType, f.outgoingPSAllow)
+	state.Outgoing_protectsurfaces_block, _ = types.SetValueFrom(ctx, types.StringType, f.outgoingPSBlock)
 
 	//Set refreshed state
 	diags = resp.State.Set(ctx, &state)
@@ -197,10 +197,10 @@ func (r *transactionflowResource) Update(ctx context.Context, req resource.Updat
 	}
 
 	var f flows
-	f.incomingPSAllow = plan.Incoming_protectsurfaces_allow
-	f.incomingPSBlock = plan.Incoming_protectsurfaces_block
-	f.outgoingPSAllow = plan.Outgoing_protectsurfaces_allow
-	f.outgoingPSBlock = plan.Outgoing_protectsurfaces_block
+	_ = plan.Incoming_protectsurfaces_allow.ElementsAs(ctx, &f.incomingPSAllow, false)
+	_ = plan.Incoming_protectsurfaces_block.ElementsAs(ctx, &f.incomingPSBlock, false)
+	_ = plan.Outgoing_protectsurfaces_allow.ElementsAs(ctx, &f.outgoingPSAllow, false)
+	_ = plan.Outgoing_protectsurfaces_block.ElementsAs(ctx, &f.outgoingPSBlock, false)
 
 	ps, err = setFlowsOnPS(ps, f)
 	if err != nil {
@@ -218,10 +218,11 @@ func (r *transactionflowResource) Update(ctx context.Context, req resource.Updat
 	// Map resonse to schema
 	plan.Protectsurface = types.StringValue(ps.ID)
 	f = readFlowsFromPS(ps)
-	plan.Incoming_protectsurfaces_allow = f.incomingPSAllow
-	plan.Incoming_protectsurfaces_block = f.incomingPSBlock
-	plan.Outgoing_protectsurfaces_allow = f.outgoingPSAllow
-	plan.Outgoing_protectsurfaces_block = f.outgoingPSBlock
+
+	plan.Incoming_protectsurfaces_allow, _ = types.SetValueFrom(ctx, types.StringType, f.incomingPSAllow)
+	plan.Incoming_protectsurfaces_block, _ = types.SetValueFrom(ctx, types.StringType, f.incomingPSBlock)
+	plan.Outgoing_protectsurfaces_allow, _ = types.SetValueFrom(ctx, types.StringType, f.outgoingPSAllow)
+	plan.Outgoing_protectsurfaces_block, _ = types.SetValueFrom(ctx, types.StringType, f.outgoingPSBlock)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
