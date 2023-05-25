@@ -88,11 +88,12 @@ func (r *stateResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				MarkdownDescription: "ID of the location",
 				Required:            true,
 			},
-			"content_type": {
-				Type:        schema.TypeString,
-				Default:     "ipv4",
-				Description: "Content type of the state i.e. ipv4, ipv6, azure_cloud",
-				Optional:    true,
+			"content_type": schema.StringAttribute{
+				Description:         "Content type of the state i.e. ipv4, ipv6, azure_resource",
+				MarkdownDescription: "Content type of the state i.e. ipv4, ipv6, azure_resource",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("ipv4"),
 			},
 			"exists_on_assets": schema.SetAttribute{
 				Description:         "Contains asset IDs which could match this state",
