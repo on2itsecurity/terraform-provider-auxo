@@ -1,0 +1,6 @@
+**/*.terraform*
+**/*.tfstate*
+**/*.hcl
+vendor/
+bin/darwin_amd64
+bin/linux_amd64
