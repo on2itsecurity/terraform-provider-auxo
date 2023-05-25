@@ -6,9 +6,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/on2itsecurity/go-auxo"
 	"github.com/on2itsecurity/go-auxo/zerotrust"
 )
@@ -20,15 +22,15 @@ type stateResource struct {
 }
 
 type stateResourceModel struct {
-	ID             types.String   `tfsdk:"id"`
-	Uniqueness_key types.String   `tfsdk:"uniqueness_key"`
-	Description    types.String   `tfsdk:"description"`
-	Protectsurface types.String   `tfsdk:"protectsurface_id"`
-	Location       types.String   `tfsdk:"location_id"`
-	ContentType    types.String   `tfsdk:"content_type"`
-	ExistsOnAssets []types.String `tfsdk:"exists_on_assets"`
-	Maintainer     types.String   `tfsdk:"maintainer"`
-	Content        []types.String `tfsdk:"content"`
+	ID             types.String `tfsdk:"id"`
+	Uniqueness_key types.String `tfsdk:"uniqueness_key"`
+	Description    types.String `tfsdk:"description"`
+	Protectsurface types.String `tfsdk:"protectsurface_id"`
+	Location       types.String `tfsdk:"location_id"`
+	ContentType    types.String `tfsdk:"content_type"`
+	ExistsOnAssets types.Set    `tfsdk:"exists_on_assets"`
+	Maintainer     types.String `tfsdk:"maintainer"`
+	Content        types.Set    `tfsdk:"content"`
 }
 
 func NewStateResource() resource.Resource {
@@ -99,7 +101,11 @@ func (r *stateResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Description:         "Contains asset IDs which could match this state",
 				MarkdownDescription: "Contains asset IDs which could match this state",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"maintainer": schema.StringAttribute{
 				Description:         "Maintainer of the state either api or portal_manual",
@@ -130,7 +136,7 @@ func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Create state (object)
-	state := resourceModelToState(&plan)
+	state := resourceModelToState(&plan, ctx)
 
 	// Create state (API)
 	result, err := r.client.ZeroTrust.CreateStateByObject(state)
@@ -141,7 +147,7 @@ func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Map resonse to schema
-	plan = stateToResourceModel(result)
+	plan = stateToResourceModel(result, ctx)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -176,7 +182,7 @@ func (r *stateResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	//Overwrite state with refreshed state
-	state = stateToResourceModel(result)
+	state = stateToResourceModel(result, ctx)
 
 	//Set refreshed state
 	diags = resp.State.Set(ctx, &state)
@@ -198,7 +204,7 @@ func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	// Create state (object)
-	state := resourceModelToState(&plan)
+	state := resourceModelToState(&plan, ctx)
 
 	// Create state (API)
 	result, err := r.client.ZeroTrust.CreateStateByObject(state)
@@ -208,7 +214,7 @@ func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	// Map resonse to schema
-	plan = stateToResourceModel(result)
+	plan = stateToResourceModel(result, ctx)
 
 	// Set state
 	diags = resp.State.Set(ctx, &plan)
@@ -238,9 +244,17 @@ func (r *stateResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 }
 
 // resourceModelToState maps the resource model to the zerotrust.state object
-func resourceModelToState(m *stateResourceModel) zerotrust.State {
-	assets := getSliceFromSetOfString(m.ExistsOnAssets)
-	content := getSliceFromSetOfString(m.Content)
+func resourceModelToState(m *stateResourceModel, ctx context.Context) zerotrust.State {
+	var existsOnAssets, content []string
+
+	if !m.ExistsOnAssets.IsNull() {
+		_ = m.ExistsOnAssets.ElementsAs(ctx, &existsOnAssets, false)
+	}
+
+	if !m.Content.IsNull() {
+		_ = m.Content.ElementsAs(ctx, &content, false)
+	}
+
 	state := zerotrust.State{
 		ID:               m.ID.ValueString(),
 		UniquenessKey:    m.Uniqueness_key.ValueString(),
@@ -248,7 +262,7 @@ func resourceModelToState(m *stateResourceModel) zerotrust.State {
 		ProtectSurface:   m.Protectsurface.ValueString(),
 		Location:         m.Location.ValueString(),
 		ContentType:      m.ContentType.ValueString(),
-		ExistsOnAssetIDs: assets,
+		ExistsOnAssetIDs: existsOnAssets,
 		Maintainer:       m.Maintainer.ValueString(),
 		Content:          &content,
 	}
@@ -256,7 +270,16 @@ func resourceModelToState(m *stateResourceModel) zerotrust.State {
 }
 
 // StateToResouceModel maps the zerotrust.state object to the resource model
-func stateToResourceModel(state *zerotrust.State) stateResourceModel {
+func stateToResourceModel(state *zerotrust.State, ctx context.Context) stateResourceModel {
+	var existsOnAssets, content basetypes.SetValue
+
+	if state.ExistsOnAssetIDs != nil {
+		existsOnAssets, _ = types.SetValueFrom(ctx, types.StringType, state.ExistsOnAssetIDs)
+	}
+	if state.Content != nil {
+		content, _ = types.SetValueFrom(ctx, types.StringType, *state.Content)
+	}
+
 	return stateResourceModel{
 		ID:             types.StringValue(state.ID),
 		Uniqueness_key: types.StringValue(state.UniquenessKey),
@@ -264,8 +287,8 @@ func stateToResourceModel(state *zerotrust.State) stateResourceModel {
 		Protectsurface: types.StringValue(state.ProtectSurface),
 		Location:       types.StringValue(state.Location),
 		ContentType:    types.StringValue(state.ContentType),
-		ExistsOnAssets: getSetOfStringFromSlice(state.ExistsOnAssetIDs),
+		ExistsOnAssets: existsOnAssets,
 		Maintainer:     types.StringValue(state.Maintainer),
-		Content:        getSetOfStringFromSlice(*state.Content),
+		Content:        content,
 	}
 }

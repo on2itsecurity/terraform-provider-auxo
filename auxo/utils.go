@@ -32,15 +32,6 @@ func getSliceFromSetOfString(values []basetypes.StringValue) []string {
 	return result
 }
 
-// getSetOfStringFromSlice converts a slice of string to a slice of basetypes.StringValue
-func getSetOfStringFromSlice(values []string) []basetypes.StringValue {
-	var result []basetypes.StringValue
-	for _, value := range values {
-		result = append(result, basetypes.NewStringValue(value))
-	}
-	return result
-}
-
 // sliceContains checks if a string is in a slice of strings
 func sliceContains(slice []string, match string) bool {
 	for _, str := range slice {
