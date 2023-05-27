@@ -1,0 +1,3 @@
+provider "auxo" {
+  token = "VerySensitiveToken"
+}

@@ -47,8 +47,8 @@ func (r *locationResource) Configure(_ context.Context, req resource.ConfigureRe
 
 func (r *locationResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description:         "Auxo Location",
-		MarkdownDescription: "Auxo Location",
+		Description:         "A location which can be used in a state to reflect where resources are located.",
+		MarkdownDescription: "A location which can be used in a state to reflect where resources are located.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description:         "Computed unique ID of the resource location",

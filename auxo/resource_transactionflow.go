@@ -52,8 +52,8 @@ func (r *transactionflowResource) Configure(_ context.Context, req resource.Conf
 
 func (r *transactionflowResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description:         "Auxo transactionflows",
-		MarkdownDescription: "Auxo transactionflows",
+		Description:         "A transactionflow resource represents the defined incoming and outgoing flows on a protect surface.",
+		MarkdownDescription: "A transactionflow resource represents the defined incoming and outgoing flows on a protect surface.",
 		Attributes: map[string]schema.Attribute{
 			"protectsurface": schema.StringAttribute{
 				Description:         "The ID of the protectsurface",

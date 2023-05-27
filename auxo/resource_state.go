@@ -52,8 +52,8 @@ func (r *stateResource) Configure(_ context.Context, req resource.ConfigureReque
 
 func (r *stateResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description:         "Auxo State",
-		MarkdownDescription: "Auxo State",
+		Description:         "A state contains resources and their location, belonging to a protect surface.",
+		MarkdownDescription: "A state contains resources and their location, belonging to a protect surface.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description:         "Computed unique ID of the resource state",

@@ -88,8 +88,8 @@ func (r *protectsurfaceResource) Configure(_ context.Context, req resource.Confi
 
 func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description:         "Auxo Protectsurface",
-		MarkdownDescription: "Auxo Protectsurface",
+		Description:         "A zero trust protectsurface which reflects what you want to protect.",
+		MarkdownDescription: "A zero trust protectsurface which reflects what you want to protect.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description:         "Computed unique ID of the resource protectsurface",
@@ -145,8 +145,8 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 				Default:             booldefault.StaticBool(false),
 			},
 			"in_zero_trust_focus": schema.BoolAttribute{
-				Description:         "This protect surface is within the 'zero trust focus' (actively maintained and monitored",
-				MarkdownDescription: "This protect surface is within the 'zero trust focus' (actively maintained and monitored",
+				Description:         "This protect surface is within the 'zero trust focus' (actively maintained and monitored)",
+				MarkdownDescription: "This protect surface is within the 'zero trust focus' (actively maintained and monitored)",
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
@@ -208,8 +208,8 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 				},
 			},
 			"soc_tags": schema.SetAttribute{
-				Description:         "Soc tags of the resource protectsurface",
-				MarkdownDescription: "Soc tags of the resource protectsurface",
+				Description:         "SOC tags of the resource protectsurface, only use when advised by the SOC",
+				MarkdownDescription: "SOC tags of the resource protectsurface, only use when advised by the SOC",
 				Optional:            true,
 				Computed:            true,
 				ElementType:         types.StringType,

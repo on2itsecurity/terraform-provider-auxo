@@ -46,8 +46,8 @@ func (d *contactDataSource) Configure(_ context.Context, req datasource.Configur
 // Schema defines the schema for the data source.
 func (d *contactDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description:         "Auxo Contact",
-		MarkdownDescription: "Auxo Contact",
+		Description:         "A contact which can be used a.o. as main- or securitycontact in a `protectsurface`.",
+		MarkdownDescription: "A contact which can be used a.o. as main- or securitycontact in a `protectsurface`.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description:         "Computed unique IDs of the contact",
