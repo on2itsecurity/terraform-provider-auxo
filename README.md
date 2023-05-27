@@ -102,3 +102,11 @@ scp ./terraform-provider-auxo <USER>@<DESTINATION.SERVER>:~/
 mkdir -p ~/.terraform.d/plugins/on2itsecurity/auxo/0.1/linux_amd64
 mv ~/terraform-provider-auxo ~/.terraform.d/plugins/on2itsecurity/auxo/0.1/linux_amd64/
 ```
+
+### Documentation
+
+The documentation can be build using [tfplugindocs](https://github.com/hashicorp/terraform-plugin-docs).
+
+```shell
+tfplugindocs generate
+```

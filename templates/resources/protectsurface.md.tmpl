@@ -1,0 +1,56 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+{{ tffile "examples/resources/protectsurface.tf" }}
+
+### Example uses of measures
+
+{{ tffile "examples/resources/protectsurface-measures.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+### Default measures
+
+- flows-segmentation
+- flows-restrict-outbound
+- flows-restrict-inbound
+- flows-appbased
+- flows-contentbased
+- flows-urlbased
+- flows-behavioral
+- endpoint-exploit
+- endpoint-malware
+- endpoint-ransomware
+- encryption-ssl-inbound-decryption
+- encryption-ssl-outbound-decryption
+- encryption-at-rest
+- encryption-in-transit
+- orchestrate-roe
+- threat-management-threat-intel
+- threat-management-vulnerability-management
+- ddos-volume
+- ddos-targeted
+- identity-centrally-managed
+- identity-rbac
+- identity-mfa
+- identity-auditable
+- secure-systems-software
+- secure-systems-hardware
+- secure-systems-updates
+- devsecops-securebuild
+- devsecops-supplychain
+- logging-central
+- data-backup
+- data-phishing
+- data-dlp
+- data-classification

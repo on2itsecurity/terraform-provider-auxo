@@ -3,49 +3,98 @@ package auxo
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/on2itsecurity/go-auxo"
 )
 
-func dataSourceContact() *schema.Resource {
-	return &schema.Resource{
-		ReadContext: dataSourceContactRead,
-		Schema: map[string]*schema.Schema{
-			"id": {
-				Type:     schema.TypeString,
-				Computed: true,
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ datasource.DataSource              = &contactDataSource{}
+	_ datasource.DataSourceWithConfigure = &contactDataSource{}
+)
+
+type contactDataSource struct {
+	client *auxo.Client
+}
+
+type contactDataSourceModel struct {
+	ID    types.String `tfsdk:"id"`
+	Email types.String `tfsdk:"email"`
+}
+
+// NewcontactDataSource is a helper function to simplify the provider implementation.
+func NewcontactDataSource() datasource.DataSource {
+	return &contactDataSource{}
+}
+
+// Metadata returns the data source type name.
+func (d *contactDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_contact"
+}
+
+func (d *contactDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	// Retrieve the client from the provider config
+	d.client = req.ProviderData.(*auxo.Client)
+}
+
+// Schema defines the schema for the data source.
+func (d *contactDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description:         "A contact which can be used a.o. as main- or securitycontact in a `protectsurface`.",
+		MarkdownDescription: "A contact which can be used a.o. as main- or securitycontact in a `protectsurface`.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description:         "Computed unique IDs of the contact",
+				MarkdownDescription: "Computed unique IDs of the contact",
+				Computed:            true,
 			},
-			"email": {
-				Type:     schema.TypeString,
-				Required: true,
+			"email": schema.StringAttribute{
+				Description:         "Emails of the contact",
+				MarkdownDescription: "Emails of the contact",
+				Required:            true,
 			},
 		},
 	}
 }
 
-func dataSourceContactRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+// Read refreshes the Terraform state with the latest data.
+func (d *contactDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state contactDataSourceModel
 
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
-	contacts, err := apiClient.CRM.GetContacts()
-
+	//Get contacts
+	contacts, err := d.client.CRM.GetContacts()
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError("Unable to retrieve contacts", err.Error())
+		return
 	}
 
+	//Get input
+	var input contactDataSourceModel
+	diags := req.Config.Get(ctx, &input)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	//Find the contact
 	for _, c := range contacts {
-		if c.Email == d.Get("email").(string) {
-			d.SetId(c.ID)
-			d.Set("id", c.ID)
-			d.Set("email", c.Email)
+		if c.Email == input.Email.ValueString() {
+			state.ID = types.StringValue(c.ID)
+			state.Email = types.StringValue(c.Email)
 			break
 		}
 	}
 
-	if d.Id() == "" {
-		return diag.Errorf("Contact not found [%s]", d.Get("email").(string))
+	//set state
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
-
-	return diags
 }

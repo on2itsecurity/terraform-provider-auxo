@@ -2,202 +2,342 @@ package auxo
 
 import (
 	"context"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/on2itsecurity/go-auxo"
 	"github.com/on2itsecurity/go-auxo/zerotrust"
 )
 
-func resourceProtectSurface() *schema.Resource {
-	return &schema.Resource{
-		CreateContext: resourceProtectSurfaceCreate,
-		ReadContext:   resourceProtectSurfaceRead,
-		UpdateContext: resourceProtectSurfaceUpdate,
-		DeleteContext: resourceProtectSurfaceDelete,
-		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
-		},
-		Schema: map[string]*schema.Schema{
-			"id": {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Description: "Unique ID of the resource/segment",
-			},
-			"uniqueness_key": {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Optional:    true,
-				ForceNew:    true,
-				Description: "Unique key to generate the ID - only needed for parallel import",
-			},
-			"name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Name of the segment",
-			},
-			"description": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Description of the segment",
-			},
-			"main_contact": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "ID of main contact in text)",
-			},
-			"security_contact": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "ID of security contact in text",
-			},
-			"in_control_boundary": {
-				Type:        schema.TypeBool,
-				Default:     false,
-				Optional:    true,
-				Description: "Is this protect surface in the control boundary (your responsibility)",
-			},
-			"in_zero_trust_focus": {
-				Type:        schema.TypeBool,
-				Default:     false,
-				Optional:    true,
-				Description: "Is this protect surface in the zero trust focus (actively maintained and monitored)",
-			},
-			"relevance": {
-				Type:        schema.TypeInt,
-				Default:     60,
-				Optional:    true,
-				Description: "Relevance 0-100 of the segment",
-			},
-			"confidentiality": {
-				Type:        schema.TypeInt,
-				Optional:    true,
-				Default:     1,
-				Description: "Confidentiality score (number 1-5)",
-			},
-			"integrity": {
-				Type:        schema.TypeInt,
-				Optional:    true,
-				Default:     1,
-				Description: "Integrity score (number 1-5)",
-			},
-			"availability": {
-				Type:        schema.TypeInt,
-				Optional:    true,
-				Default:     1,
-				Description: "Availability score (number 1-5)",
-			},
-			"data_tags": {
-				Type:        schema.TypeSet,
-				Optional:    true,
-				Description: "Contains data tags, defining the data residing in the protect surface",
-				Elem:        &schema.Schema{Type: schema.TypeString},
-			},
-			"compliance_tags": {
-				Type:        schema.TypeSet,
-				Optional:    true,
-				Description: "Contains compliance tags, defining compliancy requirements of the protect surface",
-				Elem:        &schema.Schema{Type: schema.TypeString},
-			},
-			"customer_labels": {
-				Type:        schema.TypeMap,
-				Optional:    true,
-				Description: "Contains customer labels in Key-Value-Pair format",
-				Elem:        &schema.Schema{Type: schema.TypeString},
-			},
-			"soc_tags": {
-				Type:        schema.TypeSet,
-				Optional:    true,
-				Description: "Contains tags, which are used by the SOC engineers",
-				Elem:        &schema.Schema{Type: schema.TypeString},
-			},
-			"allow_flows_from_outside": {
-				Type:        schema.TypeBool,
-				Optional:    true,
-				Description: "Does this protect surface allows to have flows from outside (e.g. Internet)",
-				Default:     false,
-			},
-			"allow_flows_to_outside": {
-				Type:        schema.TypeBool,
-				Optional:    true,
-				Description: "Does this protect surface allows to have flows to outside (e.g. Internet)",
-				Default:     false,
-			},
-			"maturity_step1": {
-				Type:        schema.TypeInt,
-				Default:     1,
-				Optional:    true,
-				Description: "maturity step 1 - defining the protect surface",
-			},
-			"maturity_step2": {
-				Type:        schema.TypeInt,
-				Default:     1,
-				Optional:    true,
-				Description: "maturity step 2 - map the transaction flows",
-			},
-			"maturity_step3": {
-				Type:        schema.TypeInt,
-				Default:     1,
-				Optional:    true,
-				Description: "maturity step 3 - architect your environment",
-			},
-			"maturity_step4": {
-				Type:        schema.TypeInt,
-				Default:     1,
-				Optional:    true,
-				Description: "maturity step 4 - zero trust policy",
-			},
-			"maturity_step5": {
-				Type:        schema.TypeInt,
-				Default:     1,
-				Optional:    true,
-				Description: "maturity step 5 - monitor and maintain",
-			},
+// var _ resource.ResourceWithModifyPlan = &protectsurfaceResource{}
+var _ resource.Resource = &protectsurfaceResource{}
 
-			"measure": {
-				Type:        schema.TypeSet,
-				Optional:    true,
-				Description: "List of measures set for this protect surface",
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"type": {
-							Type:        schema.TypeString,
-							Required:    true,
-							Description: "type of the measure",
+type protectsurfaceResource struct {
+	client *auxo.Client
+}
+
+type protectsurfaceResourceModel struct {
+	ID                    types.String       `tfsdk:"id"`
+	Uniqueness_key        types.String       `tfsdk:"uniqueness_key"`
+	Name                  types.String       `tfsdk:"name"`
+	Description           types.String       `tfsdk:"description"`
+	MainContact           types.String       `tfsdk:"main_contact"`
+	SecurityContact       types.String       `tfsdk:"security_contact"`
+	InControlBoundary     types.Bool         `tfsdk:"in_control_boundary"`
+	InZeroTrustFocus      types.Bool         `tfsdk:"in_zero_trust_focus"`
+	Relevance             types.Int64        `tfsdk:"relevance"`
+	Confidentiality       types.Int64        `tfsdk:"confidentiality"`
+	Integrity             types.Int64        `tfsdk:"integrity"`
+	Availability          types.Int64        `tfsdk:"availability"`
+	DataTags              types.Set          `tfsdk:"data_tags"`
+	ComplianceTags        types.Set          `tfsdk:"compliance_tags"`
+	CustomerLabels        types.Map          `tfsdk:"customer_labels"`
+	SOCTags               types.Set          `tfsdk:"soc_tags"`
+	AllowFlowsFromOutside types.Bool         `tfsdk:"allow_flows_from_outside"`
+	AllowFlowsToOutside   types.Bool         `tfsdk:"allow_flows_to_outside"`
+	MaturityStep1         types.Int64        `tfsdk:"maturity_step1"`
+	MaturityStep2         types.Int64        `tfsdk:"maturity_step2"`
+	MaturityStep3         types.Int64        `tfsdk:"maturity_step3"`
+	MaturityStep4         types.Int64        `tfsdk:"maturity_step4"`
+	MaturityStep5         types.Int64        `tfsdk:"maturity_step5"`
+	Measures              map[string]measure `tfsdk:"measures"`
+}
+
+type measure struct {
+	//Measure               types.String `tfsdk:"measure"`
+	Assigned              types.Bool   `tfsdk:"assigned"`
+	Assigned_by           types.String `tfsdk:"assigned_by"`
+	Assigned_timestamp    types.Int64  `tfsdk:"assigned_timestamp"`
+	Implemented           types.Bool   `tfsdk:"implemented"`
+	Implemented_by        types.String `tfsdk:"implemented_by"`
+	Implemented_timestamp types.Int64  `tfsdk:"implemented_timestamp"`
+	Evidenced             types.Bool   `tfsdk:"evidenced"`
+	Evidenced_by          types.String `tfsdk:"evidenced_by"`
+	Evidenced_timestamp   types.Int64  `tfsdk:"evidenced_timestamp"`
+}
+
+func NewProtectsurfaceResource() resource.Resource {
+	return &protectsurfaceResource{}
+}
+
+func (r *protectsurfaceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_protectsurface"
+}
+
+func (r *protectsurfaceResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	// Retrieve the client from the provider config
+	r.client = req.ProviderData.(*auxo.Client)
+}
+
+func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description:         "A zero trust protectsurface which reflects what you want to protect.",
+		MarkdownDescription: "A zero trust protectsurface which reflects what you want to protect.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description:         "Computed unique ID of the resource protectsurface",
+				MarkdownDescription: "Computed unique ID of the resource protectsurface",
+				Required:            false,
+				Optional:            false,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"uniqueness_key": schema.StringAttribute{
+				Description:         "Custom and optinal uniqueness key to identify the resource protectsurface",
+				MarkdownDescription: "Custom and optinal uniqueness key to identify the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"name": schema.StringAttribute{
+				Description:         "Name of the resource protectsurface",
+				MarkdownDescription: "Name of the resource protectsurface",
+				Required:            true,
+			},
+			"description": schema.StringAttribute{
+				Description:         "Description of the resource protectsurface",
+				MarkdownDescription: "Description of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"main_contact": schema.StringAttribute{
+				Description:         "Main contact of the resource protectsurface",
+				MarkdownDescription: "Main contact of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"security_contact": schema.StringAttribute{
+				Description:         "Security contact of the resource protectsurface",
+				MarkdownDescription: "Security contact of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"in_control_boundary": schema.BoolAttribute{
+				Description:         "This protect surface is within the 'control boundary'",
+				MarkdownDescription: "This protect surface is within the 'control boundary'",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"in_zero_trust_focus": schema.BoolAttribute{
+				Description:         "This protect surface is within the 'zero trust focus' (actively maintained and monitored)",
+				MarkdownDescription: "This protect surface is within the 'zero trust focus' (actively maintained and monitored)",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"relevance": schema.Int64Attribute{
+				Description:         "Relevance of the resource protectsurface",
+				MarkdownDescription: "Relevance of the resource protectsurface",
+				Required:            true,
+			},
+			"confidentiality": schema.Int64Attribute{
+				Description:         "Confidentiality of the resource protectsurface",
+				MarkdownDescription: "Confidentiality of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
+			"integrity": schema.Int64Attribute{
+				Description:         "Integrity of the resource protectsurface",
+				MarkdownDescription: "Integrity of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
+			"availability": schema.Int64Attribute{
+				Description:         "Availability of the resource protectsurface",
+				MarkdownDescription: "Availability of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
+			"data_tags": schema.SetAttribute{
+				Description:         "Data tags of the resource protectsurface",
+				MarkdownDescription: "Data tags of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"compliance_tags": schema.SetAttribute{
+				Description:         "Compliance tags of the resource protectsurface",
+				MarkdownDescription: "Compliance tags of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"customer_labels": schema.MapAttribute{
+				Description:         "Customer labels of the resource protectsurface",
+				MarkdownDescription: "Customer labels of the resource protectsurface",
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Map{
+					mapplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"soc_tags": schema.SetAttribute{
+				Description:         "SOC tags of the resource protectsurface, only use when advised by the SOC",
+				MarkdownDescription: "SOC tags of the resource protectsurface, only use when advised by the SOC",
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"allow_flows_from_outside": schema.BoolAttribute{
+				Description:         "Allow flows from outside of the protectsurface coming in",
+				MarkdownDescription: "Allow flows from outside of the protectsurface coming in",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"allow_flows_to_outside": schema.BoolAttribute{
+				Description:         "Allow flows to go outside of the protectsurface",
+				MarkdownDescription: "Allow flows to go outside of the protectsurface",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"maturity_step1": schema.Int64Attribute{
+				Description:         "Maturity step 1",
+				MarkdownDescription: "Maturity step 1",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
+			"maturity_step2": schema.Int64Attribute{
+				Description:         "Maturity step 2",
+				MarkdownDescription: "Maturity step 2",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
+			"maturity_step3": schema.Int64Attribute{
+				Description:         "Maturity step 3",
+				MarkdownDescription: "Maturity step 3",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
+			"maturity_step4": schema.Int64Attribute{
+				Description:         "Maturity step 4",
+				MarkdownDescription: "Maturity step 4",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
+			"maturity_step5": schema.Int64Attribute{
+				Description:         "Maturity step 5",
+				MarkdownDescription: "Maturity step 5",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
+			"measures": schema.MapNestedAttribute{
+				Description:         "Measures of the resource protectsurface",
+				MarkdownDescription: "Measures of the resource protectsurface",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"assigned": schema.BoolAttribute{
+							Description:         "Measure assigned to the protectsurface",
+							MarkdownDescription: "Measure assigned to the protectsurface",
+							Required:            true,
 						},
-						"assigned": {
-							Type:        schema.TypeBool,
-							Required:    true,
-							Description: "Is this measure assigned to the protect surface",
+						"assigned_by": schema.StringAttribute{
+							Description:         "Who assigned this measure to the protectsurface",
+							MarkdownDescription: "Who assigned this measure to the protectsurface",
+							Optional:            true,
+							Computed:            true,
+							Default:             stringdefault.StaticString(""),
 						},
-						"assigned_by": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "Who assigned this measure to the protect surface",
+						"assigned_timestamp": schema.Int64Attribute{
+							Description:         "When was this measure assigned to the protectsurface",
+							MarkdownDescription: "When was this measure assigned to the protectsurface",
+							Optional:            true,
+							Computed:            true,
+							PlanModifiers: []planmodifier.Int64{
+								int64planmodifier.UseStateForUnknown(),
+							},
 						},
-						"implemented": {
-							Type:        schema.TypeBool,
-							Optional:    true,
-							Description: "Is this measure implemented to the protect surface",
-							Default:     false,
+						"implemented": schema.BoolAttribute{
+							Description:         "Is this measure implemented to the protectsurface",
+							MarkdownDescription: "Is this measure implemented to the protectsurface",
+							Optional:            true,
+							Computed:            true,
+							Default:             booldefault.StaticBool(false),
 						},
-						"implemented_by": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "Who implemented this measure to the protect surface",
+						"implemented_by": schema.StringAttribute{
+							Description:         "Who implemented this measure to the protectsurface",
+							MarkdownDescription: "Who implemented this measure to the protectsurface",
+							Optional:            true,
+							Computed:            true,
+							Default:             stringdefault.StaticString(""),
 						},
-						"evidenced": {
-							Type:        schema.TypeBool,
-							Optional:    true,
-							Description: "Is there evidence that this measure is implemented",
-							Default:     false,
+						"implemented_timestamp": schema.Int64Attribute{
+							Description:         "When was this measure implemented to the protectsurface",
+							MarkdownDescription: "When was this measure implemented to the protectsurface",
+							Optional:            true,
+							Computed:            true,
+							PlanModifiers: []planmodifier.Int64{
+								int64planmodifier.UseStateForUnknown(),
+							},
 						},
-						"evidenced_by": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "Who evidenced that this measure is implementd",
+						"evidenced": schema.BoolAttribute{
+							Description:         "Is there evidence that this measure is implemented",
+							MarkdownDescription: "Is there evidence that this measure is implemented",
+							Optional:            true,
+							Computed:            true,
+							Default:             booldefault.StaticBool(false),
+						},
+						"evidenced_by": schema.StringAttribute{
+							Description:         "Who evidenced that this measure is implementd",
+							MarkdownDescription: "Who evidenced that this measure is implementd",
+							Optional:            true,
+							Computed:            true,
+							Default:             stringdefault.StaticString(""),
+						},
+						"evidenced_timestamp": schema.Int64Attribute{
+							Description:         "When was this measure evidenced",
+							MarkdownDescription: "When was this measure evidenced",
+							Optional:            true,
+							Computed:            true,
+							PlanModifiers: []planmodifier.Int64{
+								int64planmodifier.UseStateForUnknown(),
+							},
 						},
 					},
 				},
@@ -206,50 +346,140 @@ func resourceProtectSurface() *schema.Resource {
 	}
 }
 
-func resourceProtectSurfaceCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+func (r *protectsurfaceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	//Retrieve values from plan
+	var plan protectsurfaceResourceModel
 
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
 
-	var ps = new(zerotrust.ProtectSurface)
-	ps.UniquenessKey = d.Get("uniqueness_key").(string)
-	ps.Name = d.Get("name").(string)
-	ps.Description = d.Get("description").(string)
-	ps.MainContactPersonID = d.Get("main_contact").(string)
-	ps.SecurityContactPersonID = d.Get("security_contact").(string)
-	ps.InControlBoundary = d.Get("in_control_boundary").(bool)
-	ps.InZeroTrustFocus = d.Get("in_zero_trust_focus").(bool)
-	ps.Relevance = d.Get("relevance").(int)
-	ps.Confidentiality = d.Get("confidentiality").(int)
-	ps.Integrity = d.Get("integrity").(int)
-	ps.Availability = d.Get("availability").(int)
-	ps.DataTags = createStringSliceFromListInput(d.Get("data_tags").(*schema.Set).List())
-	ps.ComplianceTags = createStringSliceFromListInput(d.Get("compliance_tags").(*schema.Set).List())
-	ps.SocTags = createStringSliceFromListInput(d.Get("soc_tags").(*schema.Set).List())
-	cl := make(map[string]string)
-	for k, v := range d.Get("customer_labels").(map[string]any) {
-		cl[k] = v.(string)
+	if resp.Diagnostics.HasError() {
+		return
 	}
-	ps.CustomerLabels = cl
 
-	//Transaction Flows External
-	ps.FlowsFromOutside = zerotrust.Flow{Allow: d.Get("allow_flows_from_outside").(bool)}
-	ps.FlowsToOutside = zerotrust.Flow{Allow: d.Get("allow_flows_to_outside").(bool)}
+	protectsurface, d := resourceModelToProtectsurface(&plan, ctx, r)
 
-	//Maturity
-	ps.Maturity.Step1 = d.Get("maturity_step1").(int)
-	ps.Maturity.Step2 = d.Get("maturity_step2").(int)
-	ps.Maturity.Step3 = d.Get("maturity_step3").(int)
-	ps.Maturity.Step4 = d.Get("maturity_step4").(int)
-	ps.Maturity.Step5 = d.Get("maturity_step5").(int)
+	resp.Diagnostics.Append(d...)
 
-	//Measures
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	measures := d.Get("measure").(*schema.Set).List()
-	measureMap := make(map[string]zerotrust.MeasureState)
+	//Create the protectsurface
+	result, err := r.client.ZeroTrust.CreateProtectSurfaceByObject(protectsurface, false)
 
-	availableMeasures, _ := apiClient.ZeroTrust.GetMeasures()
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating protect surface", "unexpected error: "+err.Error())
+		return
+	}
+
+	//Map response to schema
+	plan, _ = protectsurfaceToResourceModel(result, ctx)
+
+	// Set state
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *protectsurfaceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	// Get current state
+	var state protectsurfaceResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Get refreshed PS from AUXO
+	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.ID.ValueString())
+	if err != nil {
+		apiError := getAPIError(err)
+
+		if apiError.ID == "410" { // Location not found and probably deleted
+			resp.State.RemoveResource(ctx)
+			return
+		} else {
+			resp.Diagnostics.AddError("Error reading location", "unexpected error: "+err.Error())
+			return
+		}
+	}
+
+	//Overwrite state with refreshed PS
+	state, _ = protectsurfaceToResourceModel(result, ctx)
+
+	//Set refreshed state
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+}
+
+func (r *protectsurfaceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+
+	// Retrieve values from plan
+	var plan protectsurfaceResourceModel
+
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	protectsurface, d := resourceModelToProtectsurface(&plan, ctx, r)
+
+	resp.Diagnostics.Append(d...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	result, err := r.client.ZeroTrust.UpdateProtectSurface(protectsurface)
+
+	if err != nil {
+		resp.Diagnostics.AddError("Error updating protect surface", "unexpected error: "+err.Error())
+		return
+	}
+
+	plan, _ = protectsurfaceToResourceModel(result, ctx)
+
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *protectsurfaceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+
+	// Retrieve values from state
+	var ps protectsurfaceResourceModel
+
+	diags := req.State.Get(ctx, &ps)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := r.client.ZeroTrust.DeleteProtectSurfaceByID(ps.ID.ValueString())
+
+	if err != nil {
+		resp.Diagnostics.AddError("Error deleting protect surface", "unexpected error: "+err.Error())
+		return
+	}
+
+}
+
+func (r *protectsurfaceResource) getAvailableMeasures() []string {
+	availableMeasures, _ := r.client.ZeroTrust.GetMeasures()
 	availableMeasuresInSlice := make([]string, 0)
 	for _, mg := range availableMeasures.Groups {
 		for _, m := range mg.Measures {
@@ -257,324 +487,191 @@ func resourceProtectSurfaceCreate(ctx context.Context, d *schema.ResourceData, m
 		}
 	}
 
-	for _, mRaw := range measures {
-		m := mRaw.(map[string]any)
+	return availableMeasuresInSlice
+}
+
+func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) map[string]measure {
+	if len(measureMap) == 0 {
+		return nil
+	}
+
+	measures := make(map[string]measure, len(measureMap))
+
+	for k, state := range measureMap {
+		measures[k] = measure{
+			//Measure:               types.StringValue(m),
+			Assigned:              types.BoolValue(state.Assignment.Assigned),
+			Assigned_by:           types.StringValue(state.Assignment.LastDeterminedByPersonID),
+			Assigned_timestamp:    types.Int64Value(int64(state.Assignment.LastDeterminedTimestamp)),
+			Implemented:           types.BoolValue(state.Implementation.Implemented),
+			Implemented_by:        types.StringValue(state.Implementation.LastDeterminedByPersonID),
+			Implemented_timestamp: types.Int64Value(int64(state.Implementation.LastDeterminedTimestamp)),
+			Evidenced:             types.BoolValue(state.Evidence.Evidenced),
+			Evidenced_by:          types.StringValue(state.Evidence.LastDeterminedByPersonID),
+			Evidenced_timestamp:   types.Int64Value(int64(state.Evidence.LastDeterminedTimestamp)),
+		}
+	}
+
+	return measures
+}
+
+// resourceModelToProtectsurface maps the resource model to the zerotrust.protectsurface object
+func resourceModelToProtectsurface(plan *protectsurfaceResourceModel, ctx context.Context, r *protectsurfaceResource) (zerotrust.ProtectSurface, diag.Diagnostics) {
+	var diag diag.Diagnostics
+	var st, dt, ct []string
+
+	if !plan.DataTags.IsNull() {
+		_ = plan.DataTags.ElementsAs(ctx, &dt, false)
+	}
+	if !plan.ComplianceTags.IsNull() {
+		_ = plan.ComplianceTags.ElementsAs(ctx, &ct, false)
+	}
+	if !plan.SOCTags.IsNull() {
+		_ = plan.SOCTags.ElementsAs(ctx, &st, false)
+	}
+	var cl map[string]string
+	types.Map.ElementsAs(plan.CustomerLabels, ctx, &cl, false)
+
+	//Create the protectsurface object
+	protectsurface := zerotrust.ProtectSurface{
+		ID:                      plan.ID.ValueString(),
+		UniquenessKey:           plan.Uniqueness_key.ValueString(),
+		Name:                    plan.Name.ValueString(),
+		Description:             plan.Description.ValueString(),
+		MainContactPersonID:     plan.MainContact.ValueString(),
+		SecurityContactPersonID: plan.SecurityContact.ValueString(),
+		InControlBoundary:       plan.InControlBoundary.ValueBool(),
+		InZeroTrustFocus:        plan.InZeroTrustFocus.ValueBool(),
+		Relevance:               int(plan.Relevance.ValueInt64()),
+		Confidentiality:         int(plan.Confidentiality.ValueInt64()),
+		Integrity:               int(plan.Integrity.ValueInt64()),
+		Availability:            int(plan.Availability.ValueInt64()),
+		DataTags:                dt,
+		ComplianceTags:          ct,
+		CustomerLabels:          cl,
+		SocTags:                 st,
+		FlowsFromOutside: zerotrust.Flow{
+			Allow: plan.AllowFlowsFromOutside.ValueBool(),
+		},
+		FlowsToOutside: zerotrust.Flow{
+			Allow: plan.AllowFlowsToOutside.ValueBool(),
+		},
+		Maturity: zerotrust.Maturity{
+			Step1: int(plan.MaturityStep1.ValueInt64()),
+			Step2: int(plan.MaturityStep2.ValueInt64()),
+			Step3: int(plan.MaturityStep3.ValueInt64()),
+			Step4: int(plan.MaturityStep4.ValueInt64()),
+			Step5: int(plan.MaturityStep5.ValueInt64()),
+		},
+	}
+
+	measureMap := make(map[string]zerotrust.MeasureState, 0)
+
+	//Loop through measures
+	for k, m := range plan.Measures {
 
 		//Check if measure exists
-		if !sliceContains(availableMeasuresInSlice, m["type"].(string)) {
-			return diag.Errorf("Measure %s does not exist, available measures [%s]", m["type"].(string), strings.Join(availableMeasuresInSlice, ","))
+		if !sliceContains(r.getAvailableMeasures(), k) {
+			diag.AddError("Measure does not exists.",
+				"Messure ["+k+"] does not exist, available measures ["+strings.Join(r.getAvailableMeasures(), ",")+"]")
+			return zerotrust.ProtectSurface{}, diag
+		}
+
+		var assigned_timestamp int
+		if !(m.Assigned_timestamp.IsUnknown() || m.Assigned_timestamp.IsNull()) {
+			assigned_timestamp = int(m.Assigned_timestamp.ValueInt64())
+		} else {
+			assigned_timestamp = int(time.Now().Unix())
 		}
 
 		assignment := zerotrust.Assignment{
-			Assigned:                 m["assigned"].(bool),
-			LastDeterminedByPersonID: m["assigned_by"].(string),
-			LastDeterminedTimestamp:  int(time.Now().Unix()),
+			Assigned:                 m.Assigned.ValueBool(),
+			LastDeterminedByPersonID: m.Assigned_by.ValueString(),
+			LastDeterminedTimestamp:  assigned_timestamp,
+		}
+
+		var implemented_timestamp int
+		if !(m.Implemented_timestamp.IsUnknown() || m.Implemented_timestamp.IsNull()) {
+			implemented_timestamp = int(m.Implemented_timestamp.ValueInt64())
+		} else {
+			implemented_timestamp = int(time.Now().Unix())
 		}
 
 		implementation := zerotrust.Implementation{
-			Implemented:              m["implemented"].(bool),
-			LastDeterminedByPersonID: m["implemented_by"].(string),
-			LastDeterminedTimestamp:  int(time.Now().Unix()),
+			Implemented:              m.Implemented.ValueBool(),
+			LastDeterminedByPersonID: m.Implemented_by.ValueString(),
+			LastDeterminedTimestamp:  implemented_timestamp,
+		}
+
+		var evidenced_timestamp int
+		if !(m.Evidenced_timestamp.IsUnknown() || m.Evidenced_timestamp.IsNull()) {
+			evidenced_timestamp = int(m.Evidenced_timestamp.ValueInt64())
+		} else {
+			evidenced_timestamp = int(time.Now().Unix())
 		}
 
 		evidence := zerotrust.Evidence{
-			Evidenced:                m["evidenced"].(bool),
-			LastDeterminedByPersonID: m["evidenced_by"].(string),
-			LastDeterminedTimestamp:  int(time.Now().Unix()),
+			Evidenced:                m.Evidenced.ValueBool(),
+			LastDeterminedByPersonID: m.Evidenced_by.ValueString(),
+			LastDeterminedTimestamp:  evidenced_timestamp,
 		}
 
-		measureMap[m["type"].(string)] = zerotrust.MeasureState{
+		measureMap[k] = zerotrust.MeasureState{
 			Assignment:     &assignment,
 			Implementation: &implementation,
 			Evidence:       &evidence,
 		}
 	}
 
-	ps.Measures = measureMap
-
-	result, err := apiClient.ZeroTrust.CreateProtectSurfaceByObject(*ps, false)
-
-	if err != nil {
-		return diag.FromErr(err)
+	if len(measureMap) == 0 {
+		measureMap = nil
 	}
+	protectsurface.Measures = measureMap
 
-	d.SetId(result.ID)
-
-	resourceProtectSurfaceRead(ctx, d, m)
-
-	return diags
+	return protectsurface, diag
 }
 
-func resourceProtectSurfaceRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+// protectsurfaceToResourceModel maps the zerotrust.protectsurface object to the resource model
+func protectsurfaceToResourceModel(ps *zerotrust.ProtectSurface, ctx context.Context) (protectsurfaceResourceModel, diag.Diagnostics) {
+	cl, diag := types.MapValueFrom(ctx, types.StringType, ps.CustomerLabels)
 
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
-
-	ps, err := apiClient.ZeroTrust.GetProtectSurfaceByID(d.Id())
-
-	if err != nil {
-		apiError := getAPIError(err)
-
-		//NotExists
-		if apiError.ID == "410" {
-			d.SetId("")
-			return nil
-		}
-
-		return diag.FromErr(err)
+	var st, dt, ct basetypes.SetValue
+	if ps.ComplianceTags != nil {
+		ct, _ = types.SetValueFrom(ctx, types.StringType, ps.ComplianceTags)
+	}
+	if ps.DataTags != nil {
+		dt, _ = types.SetValueFrom(ctx, types.StringType, ps.DataTags)
+	}
+	if ps.SocTags != nil {
+		st, _ = types.SetValueFrom(ctx, types.StringType, ps.SocTags)
 	}
 
-	d.Set("id", ps.ID)
-	d.Set("uniqueness_key", ps.UniquenessKey)
-	d.Set("name", ps.Name)
-	d.Set("description", ps.Description)
-	d.Set("main_contact", ps.MainContactPersonID)
-	d.Set("security_contact", ps.SecurityContactPersonID)
-	d.Set("in_control_boundary", ps.InControlBoundary)
-	d.Set("in_zero_trust_focus", ps.InZeroTrustFocus)
-	d.Set("relevance", ps.Relevance)
-	d.Set("confidentiality", ps.Confidentiality)
-	d.Set("integrity", ps.Integrity)
-	d.Set("availability", ps.Availability)
-	d.Set("data_tags", ps.DataTags)
-	d.Set("compliance_tags", ps.ComplianceTags)
-	d.Set("customer_labels", ps.CustomerLabels)
-	d.Set("soc_tags", ps.SocTags)
-
-	//Transaction Flows External
-	d.Set("allow_flows_from_outside", ps.FlowsFromOutside.Allow)
-	d.Set("allow_flows_to_outside", ps.FlowsToOutside.Allow)
-
-	//Maturity
-	d.Set("maturity_step1", ps.Maturity.Step1)
-	d.Set("maturity_step2", ps.Maturity.Step2)
-	d.Set("maturity_step3", ps.Maturity.Step3)
-	d.Set("maturity_step4", ps.Maturity.Step4)
-	d.Set("maturity_step5", ps.Maturity.Step5)
-
-	//Measures
-	flattenedMeasures := flattenMeasures(ps.Measures)
-	if err := d.Set("measure", flattenedMeasures); err != nil {
-		return diag.Errorf("error setting measure: %v", err)
+	psrm := protectsurfaceResourceModel{
+		ID:                    types.StringValue(ps.ID),
+		Uniqueness_key:        types.StringValue(ps.UniquenessKey),
+		Name:                  types.StringValue(ps.Name),
+		Description:           types.StringValue(ps.Description),
+		MainContact:           types.StringValue(ps.MainContactPersonID),
+		SecurityContact:       types.StringValue(ps.SecurityContactPersonID),
+		InControlBoundary:     types.BoolValue(ps.InControlBoundary),
+		InZeroTrustFocus:      types.BoolValue(ps.InZeroTrustFocus),
+		Relevance:             types.Int64Value(int64(ps.Relevance)),
+		Confidentiality:       types.Int64Value(int64(ps.Confidentiality)),
+		Integrity:             types.Int64Value(int64(ps.Integrity)),
+		Availability:          types.Int64Value(int64(ps.Availability)),
+		DataTags:              dt,
+		ComplianceTags:        ct,
+		CustomerLabels:        cl,
+		SOCTags:               st,
+		AllowFlowsFromOutside: types.BoolValue(ps.FlowsFromOutside.Allow),
+		AllowFlowsToOutside:   types.BoolValue(ps.FlowsToOutside.Allow),
+		MaturityStep1:         types.Int64Value(int64(ps.Maturity.Step1)),
+		MaturityStep2:         types.Int64Value(int64(ps.Maturity.Step2)),
+		MaturityStep3:         types.Int64Value(int64(ps.Maturity.Step3)),
+		MaturityStep4:         types.Int64Value(int64(ps.Maturity.Step4)),
+		MaturityStep5:         types.Int64Value(int64(ps.Maturity.Step5)),
+		Measures:              getMeasuresFromMap(ps.Measures),
 	}
 
-	return diags
-}
-
-func resourceProtectSurfaceUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
-
-	ps, err := apiClient.ZeroTrust.GetProtectSurfaceByID(d.Id())
-
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	if d.HasChange("uniqueness_key") {
-		ps.UniquenessKey = d.Get("uniqueness_key").(string)
-	}
-	if d.HasChange("name") {
-		ps.Name = d.Get("name").(string)
-	}
-	if d.HasChange("description") {
-		ps.Description = d.Get("description").(string)
-	}
-	if d.HasChange("main_contact") {
-		ps.MainContactPersonID = d.Get("main_contact").(string)
-	}
-	if d.HasChange("security_contact") {
-		ps.SecurityContactPersonID = d.Get("security_contact").(string)
-	}
-	if d.HasChange("in_control_boundary") {
-		ps.InControlBoundary = d.Get("in_control_boundary").(bool)
-	}
-	if d.HasChange("in_zero_trust_focus") {
-		ps.InZeroTrustFocus = d.Get("in_zero_trust_focus").(bool)
-	}
-	if d.HasChange("relevance") {
-		ps.Relevance = d.Get("relevance").(int)
-	}
-	if d.HasChange("confidentiality") {
-		ps.Confidentiality = d.Get("confidentiality").(int)
-	}
-	if d.HasChange("integrity") {
-		ps.Integrity = d.Get("integrity").(int)
-	}
-	if d.HasChange("availability") {
-		ps.Availability = d.Get("availability").(int)
-	}
-	if d.HasChange("data_tags") {
-		ps.DataTags = createStringSliceFromListInput(d.Get("data_tags").(*schema.Set).List())
-	}
-	if d.HasChange("compliance_tags") {
-		ps.ComplianceTags = createStringSliceFromListInput(d.Get("compliance_tags").(*schema.Set).List())
-	}
-	if d.HasChange("customer_labels") {
-		cl := make(map[string]string)
-		for k, v := range d.Get("customer_labels").(map[string]any) {
-			cl[k] = v.(string)
-		}
-		ps.CustomerLabels = cl
-	}
-	if d.HasChange("soc_tags") {
-		ps.SocTags = createStringSliceFromListInput(d.Get("soc_tags").(*schema.Set).List())
-	}
-
-	//Transaction Flows External
-	if d.HasChange("allow_flows_from_outside") {
-		ps.FlowsFromOutside.Allow = d.Get("allow_flows_from_outside").(bool)
-	}
-	if d.HasChange("allow_flows_to_outside") {
-		ps.FlowsToOutside.Allow = d.Get("allow_flows_to_outside").(bool)
-	}
-
-	//Maturity
-	if d.HasChange("maturity_step1") {
-		ps.Maturity.Step1 = d.Get("maturity_step1").(int)
-	}
-	if d.HasChange("maturity_step2") {
-		ps.Maturity.Step2 = d.Get("maturity_step2").(int)
-	}
-	if d.HasChange("maturity_step3") {
-		ps.Maturity.Step3 = d.Get("maturity_step3").(int)
-	}
-	if d.HasChange("maturity_step4") {
-		ps.Maturity.Step4 = d.Get("maturity_step4").(int)
-	}
-	if d.HasChange("maturity_step5") {
-		ps.Maturity.Step5 = d.Get("maturity_step5").(int)
-	}
-
-	//Measures //TODO would be nice to have a has-change per item per measure
-	availableMeasures, _ := apiClient.ZeroTrust.GetMeasures()
-	availableMeasuresInSlice := make([]string, 0)
-	for _, mg := range availableMeasures.Groups {
-		for _, m := range mg.Measures {
-			availableMeasuresInSlice = append(availableMeasuresInSlice, m.Name)
-		}
-	}
-
-	if d.HasChange("measure") {
-		changedMeasures := make(map[string]zerotrust.MeasureState)
-		measures := d.Get("measure").(*schema.Set).List()
-
-		//Limit drifting in set
-		for _, mRaw := range measures {
-			m := mRaw.(map[string]any)
-
-			assignment := zerotrust.Assignment{
-				Assigned:                 m["assigned"].(bool),
-				LastDeterminedByPersonID: m["assigned_by"].(string),
-				LastDeterminedTimestamp:  int(time.Now().Unix()),
-			}
-
-			implementation := zerotrust.Implementation{
-				Implemented:              m["implemented"].(bool),
-				LastDeterminedByPersonID: m["implemented_by"].(string),
-				LastDeterminedTimestamp:  int(time.Now().Unix()),
-			}
-
-			evidence := zerotrust.Evidence{
-				Evidenced:                m["evidenced"].(bool),
-				LastDeterminedByPersonID: m["evidenced_by"].(string),
-				LastDeterminedTimestamp:  int(time.Now().Unix()),
-			}
-
-			changedMeasures[m["type"].(string)] = zerotrust.MeasureState{
-				Assignment:     &assignment,
-				Implementation: &implementation,
-				Evidence:       &evidence,
-			}
-		}
-
-		keys := []string{}
-		for k := range changedMeasures {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		//---
-
-		for _, k := range keys {
-
-			//Check if measure exists
-			if !sliceContains(availableMeasuresInSlice, k) {
-				return diag.Errorf("Measure %s does not exist, available measures [%s]", k, strings.Join(availableMeasuresInSlice, ","))
-			}
-
-			if ps.Measures[k].Assignment.Assigned != changedMeasures[k].Assignment.Assigned {
-				changedMeasures[k].Assignment.LastDeterminedTimestamp = int(time.Now().Unix())
-			} else {
-				changedMeasures[k].Assignment.LastDeterminedTimestamp = ps.Measures[k].Assignment.LastDeterminedTimestamp
-			}
-
-			if ps.Measures[k].Implementation.Implemented != changedMeasures[k].Implementation.Implemented {
-				changedMeasures[k].Implementation.LastDeterminedTimestamp = int(time.Now().Unix())
-			} else {
-				changedMeasures[k].Implementation.LastDeterminedTimestamp = ps.Measures[k].Implementation.LastDeterminedTimestamp
-			}
-
-			if ps.Measures[k].Evidence.Evidenced != changedMeasures[k].Evidence.Evidenced {
-				changedMeasures[k].Evidence.LastDeterminedTimestamp = int(time.Now().Unix())
-			} else {
-				changedMeasures[k].Evidence.LastDeterminedTimestamp = ps.Measures[k].Evidence.LastDeterminedTimestamp
-			}
-
-		}
-		ps.Measures = changedMeasures
-
-	}
-
-	_, err = apiClient.ZeroTrust.UpdateProtectSurface(*ps)
-
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	return resourceProtectSurfaceRead(ctx, d, m)
-}
-
-func resourceProtectSurfaceDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
-
-	var diags diag.Diagnostics
-
-	err := apiClient.ZeroTrust.DeleteProtectSurfaceByID(d.Id())
-
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	d.SetId("")
-
-	return diags
-}
-
-// Flatten Measures so it can be assigend to the resource
-func flattenMeasures(measures map[string]zerotrust.MeasureState) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0)
-
-	//Limit drifting in the set when read/update
-	keys := []string{}
-	for k := range measures {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-
-		measure := make(map[string]interface{}, 7)
-		measure["type"] = k
-		measure["assigned"] = measures[k].Assignment.Assigned
-		measure["assigned_by"] = measures[k].Assignment.LastDeterminedByPersonID
-		measure["implemented"] = measures[k].Implementation.Implemented
-		measure["implemented_by"] = measures[k].Implementation.LastDeterminedByPersonID
-		measure["evidenced"] = measures[k].Evidence.Evidenced
-		measure["evidenced_by"] = measures[k].Evidence.LastDeterminedByPersonID
-
-		result = append(result, measure)
-	}
-	return result
+	return psrm, diag
 }

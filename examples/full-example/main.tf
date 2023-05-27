@@ -7,6 +7,10 @@ terraform {
   }
 }
 
+provider "auxo" {
+  name = "tailspin"
+}
+
 // Get the contact based on the email address
 data "auxo_contact" "rob" {
   email = "rob.maas+tst@on2it.net"
@@ -37,14 +41,15 @@ resource "auxo_protectsurface" "ps_ad" {
   allow_flows_to_outside   = false
 
   // Represents the segmentation measure for this protect-surface
-  measure {
-    type           = "flows-segmentation"
-    assigned       = true
-    assigned_by    = data.auxo_contact.rob.email
-    implemented    = true
-    implemented_by = data.auxo_contact.rob.email
-    evidenced      = false
-    evidenced_by   = data.auxo_contact.rob.email    
+  measures = {
+    flows-segmentation = {
+      assigned       = true
+      assigned_by    = data.auxo_contact.rob.email
+      implemented    = true
+      implemented_by = data.auxo_contact.rob.email
+      evidenced      = false
+      evidenced_by   = data.auxo_contact.rob.email
+    } 
   }
 }
 
@@ -119,7 +124,7 @@ resource "auxo_location" "loc_zaltbommel" {
 // Represents a state, this can be seen as the glue between protect-surface, location and the type of resources it represent
 // A protect surface can have multipe states attached to it
 resource "auxo_state" "ps_ad-loc_beunigen-ipv4" {
-  content_type      = "static_ipv4"
+  content_type      = "ipv4"
   description       = "Static IPv4 allocations of AD servers"
   location_id       = auxo_location.loc_beuningen.id
   protectsurface_id = auxo_protectsurface.ps_ad.id
@@ -127,7 +132,7 @@ resource "auxo_state" "ps_ad-loc_beunigen-ipv4" {
 }
 
 resource "auxo_state" "ps_ad-loc_zaltbommel-ipv4" {
-  content_type      = "static_ipv4"
+  content_type      = "ipv4"
   description       = "Static IPv4 allocations of AD servers"
   location_id       = auxo_location.loc_zaltbommel.id
   protectsurface_id = auxo_protectsurface.ps_ad.id
@@ -135,7 +140,7 @@ resource "auxo_state" "ps_ad-loc_zaltbommel-ipv4" {
 }
 
 resource "auxo_state" "ps_guests-loc_zaltbommel-ipv4" {
-  content_type      = "static_ipv4"
+  content_type      = "ipv4"
   description       = "Static IPv4 subnet for guests"
   location_id       = auxo_location.loc_zaltbommel.id
   protectsurface_id = auxo_protectsurface.ps_guests.id

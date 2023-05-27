@@ -3,205 +3,292 @@ package auxo
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/on2itsecurity/go-auxo"
 	"github.com/on2itsecurity/go-auxo/zerotrust"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func resourceState() *schema.Resource {
-	return &schema.Resource{
-		CreateContext: resourceStateCreate,
-		ReadContext:   resourceStateRead,
-		UpdateContext: resourceStateUpdate,
-		DeleteContext: resourceStateDelete,
-		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
-		},
-		Schema: map[string]*schema.Schema{
-			"id": {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Description: "Unique ID of the resource/state",
-			},
-			"uniqueness_key": {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Optional:    true,
-				ForceNew:    true,
-				Description: "Unique key to generate the ID - only needed for parallel import",
-			},
-			"description": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Description of the segment",
-			},
-			"protectsurface_id": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "ProtectSurface ID",
-				ForceNew:    true,
-			},
-			"location_id": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Location ID",
-				ForceNew:    true,
-			},
-			"content_type": {
-				Type:        schema.TypeString,
-				Default:     "ipv4",
-				Description: "Content type of the state i.e. ipv4, ipv6, azure_cloud",
-				Optional:    true,
-			},
-			"exists_on_assets": {
-				Type:        schema.TypeSet,
-				Optional:    true,
-				Description: "Contains asset IDs which could match this state",
-				Elem:        &schema.Schema{Type: schema.TypeString},
-			},
-			"maintainer": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "api",
-				Description: "Maintainer of the state either api or portal_manual",
-			},
-			"content": {
-				Type:        schema.TypeSet,
-				Required:    true,
-				Description: "Content of the state e.g. \"10.1.1.2/32\",\"10.1.1.3/32\"",
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
+var _ resource.Resource = &stateResource{}
+
+type stateResource struct {
+	client *auxo.Client
+}
+
+type stateResourceModel struct {
+	ID             types.String `tfsdk:"id"`
+	Uniqueness_key types.String `tfsdk:"uniqueness_key"`
+	Description    types.String `tfsdk:"description"`
+	Protectsurface types.String `tfsdk:"protectsurface_id"`
+	Location       types.String `tfsdk:"location_id"`
+	ContentType    types.String `tfsdk:"content_type"`
+	ExistsOnAssets types.Set    `tfsdk:"exists_on_assets"`
+	Maintainer     types.String `tfsdk:"maintainer"`
+	Content        types.Set    `tfsdk:"content"`
+}
+
+func NewStateResource() resource.Resource {
+	return &stateResource{}
+}
+
+func (r *stateResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_state"
+}
+
+func (r *stateResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	// Retrieve the client from the provider config
+	r.client = req.ProviderData.(*auxo.Client)
+}
+
+func (r *stateResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description:         "A state contains resources and their location, belonging to a protect surface.",
+		MarkdownDescription: "A state contains resources and their location, belonging to a protect surface.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description:         "Computed unique ID of the resource state",
+				MarkdownDescription: "Computed unique ID of the resource state",
+				Required:            false,
+				Optional:            false,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"uniqueness_key": schema.StringAttribute{
+				Description:         "Custom and optinal uniqueness key to identify the resource state",
+				MarkdownDescription: "Custom and optinal uniqueness key to identify the resource state",
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"description": schema.StringAttribute{
+				Description:         "Description of the resource state",
+				MarkdownDescription: "Description of the resource state",
+				Required:            true,
+			},
+			"protectsurface_id": schema.StringAttribute{
+				Description:         "ID of the protect surface",
+				MarkdownDescription: "ID of the protect surface",
+				Required:            true,
+			},
+			"location_id": schema.StringAttribute{
+				Description:         "ID of the location",
+				MarkdownDescription: "ID of the location",
+				Required:            true,
+			},
+			"content_type": schema.StringAttribute{
+				Description:         "Content type of the state i.e. ipv4, ipv6, azure_resource",
+				MarkdownDescription: "Content type of the state i.e. ipv4, ipv6, azure_resource",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("ipv4"),
+			},
+			"exists_on_assets": schema.SetAttribute{
+				Description:         "Contains asset IDs which could match this state",
+				MarkdownDescription: "Contains asset IDs which could match this state",
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"maintainer": schema.StringAttribute{
+				Description:         "Maintainer of the state either api or portal_manual",
+				MarkdownDescription: "Maintainer of the state either api or portal_manual",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("api_terraform"),
+			},
+			"content": schema.SetAttribute{
+				Description:         "Content of the state e.g. \"10.1.1.2/32\",\"10.1.1.3/32\"",
+				MarkdownDescription: "Content of the state e.g. \"10.1.1.2/32\",\"10.1.1.3/32\"",
+				Required:            true,
+				ElementType:         types.StringType,
+			},
 		},
 	}
 }
 
-func resourceStateCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	//Retrieve values from plan
+	var plan stateResourceModel
 
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
 
-	var state = new(zerotrust.State)
-
-	state.UniquenessKey = d.Get("uniqueness_key").(string)
-	state.Description = d.Get("description").(string)
-	state.ProtectSurface = d.Get("protectsurface_id").(string)
-	state.Location = d.Get("location_id").(string)
-	state.ContentType = d.Get("content_type").(string)
-	state.Maintainer = d.Get("maintainer").(string)
-	state.ExistsOnAssetIDs = createStringSliceFromListInput(d.Get("exists_on_assets").(*schema.Set).List())
-	content := createStringSliceFromListInput(d.Get("content").(*schema.Set).List())
-	state.Content = &content
-
-	result, err := apiClient.ZeroTrust.CreateStateByObject(*state)
-
-	if err != nil {
-		return diag.FromErr(err)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	d.SetId(result.ID)
+	// Create state (object)
+	state := resourceModelToState(&plan, ctx)
 
-	resourceStateRead(ctx, d, m)
+	// Create state (API)
+	result, err := r.client.ZeroTrust.CreateStateByObject(state)
 
-	return diags
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating state", "unexpected error: "+err.Error())
+		return
+	}
+
+	// Map resonse to schema
+	plan = stateToResourceModel(result, ctx)
+
+	// Set state
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 }
+func (r *stateResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	// Get current state
+	var state stateResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-func resourceStateRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
-
-	state, err := apiClient.ZeroTrust.GetStateByID(d.Id())
-
+	// Get refreshed state from AUXO
+	result, err := r.client.ZeroTrust.GetStateByID(state.ID.ValueString())
 	if err != nil {
 		apiError := getAPIError(err)
 
-		//NotExists
-		if apiError.ID == "410" {
-			d.SetId("")
-			return nil
+		if apiError.ID == "410" { // Location not found and probably deleted
+			resp.State.RemoveResource(ctx)
+			return
+		} else {
+			resp.Diagnostics.AddError("Error reading location", "unexpected error: "+err.Error())
+			return
 		}
-
-		return diag.FromErr(err)
 	}
 
-	d.Set("id", state.ID)
-	d.Set("uniqueness_key", state.UniquenessKey)
-	d.Set("description", state.Description)
-	d.Set("protectsurface_id", state.ProtectSurface)
-	d.Set("location_id", state.Location)
-	d.Set("content_type", state.ContentType)
-	d.Set("maintainer", state.Maintainer)
-	d.Set("exists_on_assets", state.ExistsOnAssetIDs)
-	d.Set("content", state.Content)
+	//Overwrite state with refreshed state
+	state = stateToResourceModel(result, ctx)
 
-	return diags
+	//Set refreshed state
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+}
+func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	//Retrieve values from plan
+	var plan stateResourceModel
+
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Create state (object)
+	state := resourceModelToState(&plan, ctx)
+
+	// Create state (API)
+	result, err := r.client.ZeroTrust.CreateStateByObject(state)
+
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating state", "unexpected error: "+err.Error())
+	}
+
+	// Map resonse to schema
+	plan = stateToResourceModel(result, ctx)
+
+	// Set state
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 }
 
-func resourceStateUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+func (r *stateResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	// Retrieve values from state
+	var state stateResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
-
-	state, err := apiClient.ZeroTrust.GetStateByID(d.Id())
-
+	// Delete state
+	err := r.client.ZeroTrust.DeleteStateByID(state.ID.ValueString())
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError("Error deleting state", "unexpected error: "+err.Error())
+		return
 	}
-
-	if d.HasChange("uniqueness_key") {
-		state.UniquenessKey = d.Get("uniqueness_key").(string)
-	}
-	if d.HasChange("description") {
-		state.Description = d.Get("description").(string)
-	}
-	if d.HasChange("protectsurface_id") {
-		state.ProtectSurface = d.Get("protectsurface_id").(string)
-	}
-	if d.HasChange("location_id") {
-		state.Location = d.Get("location_id").(string)
-	}
-	if d.HasChange("content_type") {
-		state.ContentType = d.Get("content_type").(string)
-	}
-	if d.HasChange("maintainer") {
-		state.Maintainer = d.Get("maintainer").(string)
-	}
-	if d.HasChange("exists_on_assets") {
-		state.ExistsOnAssetIDs = createStringSliceFromListInput(d.Get("exists_on_assets").(*schema.Set).List())
-	}
-	if d.HasChange("content") {
-		content := createStringSliceFromListInput(d.Get("content").(*schema.Set).List())
-		state.Content = &content
-	}
-
-	_, err = apiClient.ZeroTrust.UpdateState(*state)
-
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	return diags
 }
 
-func resourceStateDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
+// resourceModelToState maps the resource model to the zerotrust.state object
+func resourceModelToState(m *stateResourceModel, ctx context.Context) zerotrust.State {
+	var existsOnAssets, content []string
 
-	var diags diag.Diagnostics
-
-	err := apiClient.ZeroTrust.DeleteStateByID(d.Id())
-
-	if err != nil {
-		return diag.FromErr(err)
+	if !m.ExistsOnAssets.IsNull() {
+		_ = m.ExistsOnAssets.ElementsAs(ctx, &existsOnAssets, false)
 	}
 
-	d.SetId("")
+	if !m.Content.IsNull() {
+		_ = m.Content.ElementsAs(ctx, &content, false)
+	}
 
-	return diags
+	state := zerotrust.State{
+		ID:               m.ID.ValueString(),
+		UniquenessKey:    m.Uniqueness_key.ValueString(),
+		Description:      m.Description.ValueString(),
+		ProtectSurface:   m.Protectsurface.ValueString(),
+		Location:         m.Location.ValueString(),
+		ContentType:      m.ContentType.ValueString(),
+		ExistsOnAssetIDs: existsOnAssets,
+		Maintainer:       m.Maintainer.ValueString(),
+		Content:          &content,
+	}
+	return state
+}
+
+// StateToResouceModel maps the zerotrust.state object to the resource model
+func stateToResourceModel(state *zerotrust.State, ctx context.Context) stateResourceModel {
+	var existsOnAssets, content basetypes.SetValue
+
+	if state.ExistsOnAssetIDs != nil {
+		existsOnAssets, _ = types.SetValueFrom(ctx, types.StringType, state.ExistsOnAssetIDs)
+	}
+	if state.Content != nil {
+		content, _ = types.SetValueFrom(ctx, types.StringType, *state.Content)
+	}
+
+	return stateResourceModel{
+		ID:             types.StringValue(state.ID),
+		Uniqueness_key: types.StringValue(state.UniquenessKey),
+		Description:    types.StringValue(state.Description),
+		Protectsurface: types.StringValue(state.ProtectSurface),
+		Location:       types.StringValue(state.Location),
+		ContentType:    types.StringValue(state.ContentType),
+		ExistsOnAssets: existsOnAssets,
+		Maintainer:     types.StringValue(state.Maintainer),
+		Content:        content,
+	}
 }

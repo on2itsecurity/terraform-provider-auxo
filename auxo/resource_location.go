@@ -3,151 +3,235 @@ package auxo
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/on2itsecurity/go-auxo"
 	"github.com/on2itsecurity/go-auxo/zerotrust"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func resourceLocation() *schema.Resource {
-	return &schema.Resource{
-		CreateContext: resourceLocationCreate,
-		ReadContext:   resourceLocationRead,
-		UpdateContext: resourceLocationUpdate,
-		DeleteContext: resourceLocationDelete,
-		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
-		},
-		Schema: map[string]*schema.Schema{
-			"id": {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Description: "Unique ID of the resource/location",
+// Ensure the implementation satisfies the resource.Resource interface.
+var _ resource.Resource = &locationResource{}
+
+type locationResource struct {
+	client *auxo.Client
+}
+
+type locationResourceModel struct {
+	ID             types.String  `tfsdk:"id"`
+	Uniqueness_key types.String  `tfsdk:"uniqueness_key"`
+	Name           types.String  `tfsdk:"name"`
+	Latitude       types.Float64 `tfsdk:"latitude"`
+	Longitude      types.Float64 `tfsdk:"longitude"`
+}
+
+func NewLocationResource() resource.Resource {
+	return &locationResource{}
+}
+
+func (r *locationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_location"
+}
+
+func (r *locationResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	// Retrieve the client from the provider config
+	r.client = req.ProviderData.(*auxo.Client)
+}
+
+func (r *locationResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description:         "A location which can be used in a state to reflect where resources are located.",
+		MarkdownDescription: "A location which can be used in a state to reflect where resources are located.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description:         "Computed unique ID of the resource location",
+				MarkdownDescription: "Computed unique ID of the resource location",
+				Required:            false,
+				Optional:            false,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
-			"uniqueness_key": {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Optional:    true,
-				ForceNew:    true,
-				Description: "Unique key to generate the ID - only needed for parallel import",
+			"uniqueness_key": schema.StringAttribute{
+				Description:         "Custom and optinal uniqueness key to identify the resource location",
+				MarkdownDescription: "Custom and optinal uniqueness key to identify the resource location",
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
-			"name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Unique name of the location",
+			"name": schema.StringAttribute{
+				Description:         "Name of the resource location",
+				MarkdownDescription: "Name of the resource location",
+				Required:            true,
 			},
-			"latitude": {
-				Type:        schema.TypeFloat,
-				Optional:    true,
-				Description: "Latitude of the location",
+			"latitude": schema.Float64Attribute{
+				Description:         "Latitude of the resource location",
+				MarkdownDescription: "Latitude of the resource location",
+				Optional:            true,
+				Computed:            true,
+				Default:             float64default.StaticFloat64(0),
 			},
-			"longitude": {
-				Type:        schema.TypeFloat,
-				Optional:    true,
-				Description: "Longitude of the location",
+			"longitude": schema.Float64Attribute{
+				Description:         "Longitude of the resource location",
+				MarkdownDescription: "Longitude of the resource location",
+				Optional:            true,
+				Computed:            true,
+				Default:             float64default.StaticFloat64(0),
 			},
 		},
 	}
 }
 
-func resourceLocationCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+func (r *locationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	//Retrieve values from plan
+	var plan locationResourceModel
 
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
 
-	var location = new(zerotrust.Location)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	location.UniquenessKey = d.Get("uniqueness_key").(string)
-	location.Name = d.Get("name").(string)
-	location.Coords.Latitude = d.Get("latitude").(float64)
-	location.Coords.Longitude = d.Get("longitude").(float64)
+	// Create location (object)
+	location := resourceModelToLocation(&plan)
 
-	result, err := apiClient.ZeroTrust.CreateLocationByObject(*location, false)
+	// Create location (API)
+	result, err := r.client.ZeroTrust.CreateLocationByObject(location, false)
 
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError("Error creating location", "unexpected error: "+err.Error())
+		return
 	}
 
-	d.SetId(result.ID)
+	// Map resonse to schema
+	plan = locationToResourceModel(result)
 
-	resourceLocationRead(ctx, d, m)
+	// Set state
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
 
-	return diags
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
-func resourceLocationRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+func (r *locationResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	// Get current state
+	var location locationResourceModel
+	diags := req.State.Get(ctx, &location)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
-
-	location, err := apiClient.ZeroTrust.GetLocationByID(d.Id())
-
+	// Get refreshed location from AUXO
+	result, err := r.client.ZeroTrust.GetLocationByID(location.ID.ValueString())
 	if err != nil {
 		apiError := getAPIError(err)
 
-		//NotExists
-		if apiError.ID == "410" {
-			d.SetId("")
-			return nil
+		if apiError.ID == "410" { // Location not found and probably deleted
+			resp.State.RemoveResource(ctx)
+			return
+		} else {
+			resp.Diagnostics.AddError("Error reading location", "unexpected error: "+err.Error())
+			return
 		}
-		return diag.FromErr(err)
 	}
 
-	d.Set("id", location.ID)
-	d.Set("uniqueness_key", location.UniquenessKey)
-	d.Set("name", location.Name)
-	d.Set("latitude", location.Coords.Latitude)
-	d.Set("longitude", location.Coords.Longitude)
+	//Overwrite state with refreshed location
+	location = locationToResourceModel(result)
 
-	return diags
+	//Set refreshed state
+	diags = resp.State.Set(ctx, &location)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
-func resourceLocationUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
+func (r *locationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	//Retrieve values from plan
+	var plan, state locationResourceModel
 
-	location, err := apiClient.ZeroTrust.GetLocationByID(d.Id())
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	diags = req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
 
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	if d.HasChange("uniqueness_key") {
-		location.UniquenessKey = d.Get("uniqueness_key").(string)
-	}
-	if d.HasChange("name") {
-		location.Name = d.Get("name").(string)
-	}
-	if d.HasChange("latitude") {
-		location.Coords.Latitude = d.Get("latitude").(float64)
-	}
-	if d.HasChange("longitude") {
-		location.Coords.Longitude = d.Get("longitude").(float64)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	_, err = apiClient.ZeroTrust.UpdateLocation(*location)
+	// Create location (object)
+	location := resourceModelToLocation(&plan)
+
+	// Update location (API)
+	result, err := r.client.ZeroTrust.UpdateLocation(location)
 
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError("Error updating location", "unexpected error: "+err.Error())
+		return
 	}
 
-	return resourceLocationRead(ctx, d, m)
+	// Update state
+	plan = locationToResourceModel(result)
+	diags = resp.State.Set(ctx, plan)
+
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
-func resourceLocationDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	provider := m.(*AuxoProvider)
-	apiClient := provider.APIClient
-
-	var diags diag.Diagnostics
-
-	err := apiClient.ZeroTrust.DeleteLocationByID(d.Id())
-	if err != nil {
-		return diag.FromErr(err)
+func (r *locationResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	//Retrieve values from state
+	var location locationResourceModel
+	diags := req.State.Get(ctx, &location)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	d.SetId("")
+	//Delete location
+	err := r.client.ZeroTrust.DeleteLocationByID(location.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Error deleting location", "unexpected error: "+err.Error())
+		return
+	}
+}
 
-	return diags
+// resourceModelToLocation maps the resource model to the zerotrust.location object
+func resourceModelToLocation(m *locationResourceModel) zerotrust.Location {
+	return zerotrust.Location{
+		ID:            m.ID.ValueString(),
+		UniquenessKey: m.Uniqueness_key.ValueString(),
+		Name:          m.Name.ValueString(),
+		Coords: zerotrust.Coords{
+			Latitude:  m.Latitude.ValueFloat64(),
+			Longitude: m.Longitude.ValueFloat64(),
+		},
+	}
+}
+
+// locationToResouceModel maps the zerotrust.location object to the resource model
+func locationToResourceModel(location *zerotrust.Location) locationResourceModel {
+	return locationResourceModel{
+		ID:             types.StringValue(location.ID),
+		Uniqueness_key: types.StringValue(location.UniquenessKey),
+		Name:           types.StringValue(location.Name),
+		Latitude:       types.Float64Value(location.Coords.Latitude),
+		Longitude:      types.Float64Value(location.Coords.Longitude),
+	}
 }

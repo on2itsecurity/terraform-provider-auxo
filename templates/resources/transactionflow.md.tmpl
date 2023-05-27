@@ -1,0 +1,19 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+{{ tffile "examples/resources/transactionflow.tf" }}
+
+**Important** if a flow is allowed on protect surface A to go to protect surface B, it does not mean that the flow is accepted on protect surface B. There needs to be mutual consensus, which means two resources of transactionflow are needed, one for each protect surface, see example below.
+
+{{ tffile "examples/resources/transactionflow-bidirectional.tf" }}
+
