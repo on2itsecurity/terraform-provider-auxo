@@ -100,6 +100,16 @@ func (d *locationDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
+	//Make map to check for duplicates (which allowed, but makes it impossible to look for a location by name)
+	locCount := make(map[string]int)
+	for _, location := range locations {
+		locCount[location.Name]++
+	}
+	if locCount[input.Name.ValueString()] > 1 {
+		resp.Diagnostics.AddError("Duplicate name on backend, please use uniqueness key", "Duplicate name on backend name "+input.Name.ValueString()+", please use uniqueness key")
+		return
+	}
+
 	//Check if one of the two is set
 	if (input.Uniqueness_key.IsNull() && input.Name.IsNull()) || (!input.Uniqueness_key.IsNull() && !input.Name.IsNull()) {
 		resp.Diagnostics.AddError("Either uniqueness_key OR name must be set", "")
