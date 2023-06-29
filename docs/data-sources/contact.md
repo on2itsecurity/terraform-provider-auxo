@@ -2,12 +2,12 @@
 page_title: "auxo_contact Data Source - terraform-provider-auxo"
 subcategory: ""
 description: |-
-  Auxo Contact
+  A contact which can be used a.o. as main- or securitycontact in a protectsurface.
 ---
 
 # auxo_contact (Data Source)
 
-Auxo Contact
+A contact which can be used a.o. as main- or securitycontact in a `protectsurface`.
 
 ## Example Usage
 
