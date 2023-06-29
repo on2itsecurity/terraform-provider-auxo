@@ -116,7 +116,7 @@ func (d *locationDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	//Find the location //TODO what if multiple entries have the samen name ?
+	//Find the location
 	for _, l := range locations {
 		if (l.UniquenessKey == input.Uniqueness_key.ValueString()) || (l.Name == input.Name.ValueString()) {
 			state.ID = types.StringValue(l.ID)
