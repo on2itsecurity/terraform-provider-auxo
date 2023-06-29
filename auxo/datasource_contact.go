@@ -25,7 +25,7 @@ type contactDataSourceModel struct {
 }
 
 // NewcontactDataSource is a helper function to simplify the provider implementation.
-func NewcontactDataSource() datasource.DataSource {
+func NewContactDataSource() datasource.DataSource {
 	return &contactDataSource{}
 }
 
@@ -89,6 +89,11 @@ func (d *contactDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			state.Email = types.StringValue(c.Email)
 			break
 		}
+	}
+
+	if state.ID.IsNull() {
+		resp.Diagnostics.AddError("Unable to find contact", "Unable to find contact with email "+input.Email.ValueString())
+		return
 	}
 
 	//set state
