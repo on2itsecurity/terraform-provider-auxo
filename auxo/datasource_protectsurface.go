@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/on2itsecurity/go-auxo"
 )
 
@@ -20,10 +21,29 @@ type protectsurfaceDataSource struct {
 }
 
 type protectsurfaceDataSourceModel struct {
-	ID             types.String `tfsdk:"id"`
-	Uniqueness_key types.String `tfsdk:"uniqueness_key"`
-	Name           types.String `tfsdk:"name"`
-	//TODO Add all fields
+	ID                    types.String `tfsdk:"id"`
+	Uniqueness_key        types.String `tfsdk:"uniqueness_key"`
+	Name                  types.String `tfsdk:"name"`
+	Description           types.String `tfsdk:"description"`
+	MainContact           types.String `tfsdk:"main_contact"`
+	SecurityContact       types.String `tfsdk:"security_contact"`
+	InControlBoundary     types.Bool   `tfsdk:"in_control_boundary"`
+	InZeroTrustFocus      types.Bool   `tfsdk:"in_zero_trust_focus"`
+	Relevance             types.Int64  `tfsdk:"relevance"`
+	Confidentiality       types.Int64  `tfsdk:"confidentiality"`
+	Integrity             types.Int64  `tfsdk:"integrity"`
+	Availability          types.Int64  `tfsdk:"availability"`
+	DataTags              types.Set    `tfsdk:"data_tags"`
+	ComplianceTags        types.Set    `tfsdk:"compliance_tags"`
+	CustomerLabels        types.Map    `tfsdk:"customer_labels"`
+	SOCTags               types.Set    `tfsdk:"soc_tags"`
+	AllowFlowsFromOutside types.Bool   `tfsdk:"allow_flows_from_outside"`
+	AllowFlowsToOutside   types.Bool   `tfsdk:"allow_flows_to_outside"`
+	MaturityStep1         types.Int64  `tfsdk:"maturity_step1"`
+	MaturityStep2         types.Int64  `tfsdk:"maturity_step2"`
+	MaturityStep3         types.Int64  `tfsdk:"maturity_step3"`
+	MaturityStep4         types.Int64  `tfsdk:"maturity_step4"`
+	MaturityStep5         types.Int64  `tfsdk:"maturity_step5"`
 }
 
 // NewprotectsurfaceDataSource is a helper function to simplify the provider implementation.
@@ -66,7 +86,110 @@ func (d *protectsurfaceDataSource) Schema(_ context.Context, _ datasource.Schema
 				MarkdownDescription: "Name of the protectsurface",
 				Optional:            true,
 			},
-			//TODO Add all fields
+			"description": schema.StringAttribute{
+				Description:         "Description of the resource protectsurface",
+				MarkdownDescription: "Description of the resource protectsurface",
+				Computed:            true,
+			},
+			"main_contact": schema.StringAttribute{
+				Description:         "Main contact of the resource protectsurface",
+				MarkdownDescription: "Main contact of the resource protectsurface",
+				Computed:            true,
+			},
+			"security_contact": schema.StringAttribute{
+				Description:         "Security contact of the resource protectsurface",
+				MarkdownDescription: "Security contact of the resource protectsurface",
+				Computed:            true,
+			},
+			"in_control_boundary": schema.BoolAttribute{
+				Description:         "This protect surface is within the 'control boundary'",
+				MarkdownDescription: "This protect surface is within the 'control boundary'",
+				Computed:            true,
+			},
+			"in_zero_trust_focus": schema.BoolAttribute{
+				Description:         "This protect surface is within the 'zero trust focus' (actively maintained and monitored)",
+				MarkdownDescription: "This protect surface is within the 'zero trust focus' (actively maintained and monitored)",
+				Computed:            true,
+			},
+			"relevance": schema.Int64Attribute{
+				Description:         "Relevance of the resource protectsurface",
+				MarkdownDescription: "Relevance of the resource protectsurface",
+				Computed:            true,
+			},
+			"confidentiality": schema.Int64Attribute{
+				Description:         "Confidentiality of the resource protectsurface",
+				MarkdownDescription: "Confidentiality of the resource protectsurface",
+				Computed:            true,
+			},
+			"integrity": schema.Int64Attribute{
+				Description:         "Integrity of the resource protectsurface",
+				MarkdownDescription: "Integrity of the resource protectsurface",
+				Computed:            true,
+			},
+			"availability": schema.Int64Attribute{
+				Description:         "Availability of the resource protectsurface",
+				MarkdownDescription: "Availability of the resource protectsurface",
+				Computed:            true,
+			},
+			"data_tags": schema.SetAttribute{
+				Description:         "Data tags of the resource protectsurface",
+				MarkdownDescription: "Data tags of the resource protectsurface",
+				Computed:            true,
+				ElementType:         types.StringType,
+			},
+			"compliance_tags": schema.SetAttribute{
+				Description:         "Compliance tags of the resource protectsurface",
+				MarkdownDescription: "Compliance tags of the resource protectsurface",
+				Computed:            true,
+				ElementType:         types.StringType,
+			},
+			"customer_labels": schema.MapAttribute{
+				Description:         "Customer labels of the resource protectsurface",
+				MarkdownDescription: "Customer labels of the resource protectsurface",
+				Computed:            true,
+				ElementType:         types.StringType,
+			},
+			"soc_tags": schema.SetAttribute{
+				Description:         "SOC tags of the resource protectsurface, only use when advised by the SOC",
+				MarkdownDescription: "SOC tags of the resource protectsurface, only use when advised by the SOC",
+				Computed:            true,
+				ElementType:         types.StringType,
+			},
+			"allow_flows_from_outside": schema.BoolAttribute{
+				Description:         "Allow flows from outside of the protectsurface coming in",
+				MarkdownDescription: "Allow flows from outside of the protectsurface coming in",
+				Computed:            true,
+			},
+			"allow_flows_to_outside": schema.BoolAttribute{
+				Description:         "Allow flows to go outside of the protectsurface",
+				MarkdownDescription: "Allow flows to go outside of the protectsurface",
+				Computed:            true,
+			},
+			"maturity_step1": schema.Int64Attribute{
+				Description:         "Maturity step 1",
+				MarkdownDescription: "Maturity step 1",
+				Computed:            true,
+			},
+			"maturity_step2": schema.Int64Attribute{
+				Description:         "Maturity step 2",
+				MarkdownDescription: "Maturity step 2",
+				Computed:            true,
+			},
+			"maturity_step3": schema.Int64Attribute{
+				Description:         "Maturity step 3",
+				MarkdownDescription: "Maturity step 3",
+				Computed:            true,
+			},
+			"maturity_step4": schema.Int64Attribute{
+				Description:         "Maturity step 4",
+				MarkdownDescription: "Maturity step 4",
+				Computed:            true,
+			},
+			"maturity_step5": schema.Int64Attribute{
+				Description:         "Maturity step 5",
+				MarkdownDescription: "Maturity step 5",
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -107,12 +230,46 @@ func (d *protectsurfaceDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	//Find the protectsurface
-	for _, l := range protectsurfaces {
-		if (l.UniquenessKey == input.Uniqueness_key.ValueString()) || (l.Name == input.Name.ValueString()) {
-			state.ID = types.StringValue(l.ID)
-			state.Name = types.StringValue(l.Name)
-			state.Uniqueness_key = types.StringValue(l.UniquenessKey)
-			//TODO Add all fields
+	for _, ps := range protectsurfaces {
+		if (ps.UniquenessKey == input.Uniqueness_key.ValueString()) || (ps.Name == input.Name.ValueString()) {
+			state.ID = types.StringValue(ps.ID)
+			state.Name = types.StringValue(ps.Name)
+			state.Uniqueness_key = types.StringValue(ps.UniquenessKey)
+			//Map all "other" fields
+			cl, _ := types.MapValueFrom(ctx, types.StringType, ps.CustomerLabels)
+
+			var st, dt, ct basetypes.SetValue
+			if ps.ComplianceTags != nil {
+				ct, _ = types.SetValueFrom(ctx, types.StringType, ps.ComplianceTags)
+			}
+			if ps.DataTags != nil {
+				dt, _ = types.SetValueFrom(ctx, types.StringType, ps.DataTags)
+			}
+			if ps.SocTags != nil {
+				st, _ = types.SetValueFrom(ctx, types.StringType, ps.SocTags)
+			}
+
+			state.Description = types.StringValue(ps.Description)
+			state.MainContact = types.StringValue(ps.MainContactPersonID)
+			state.SecurityContact = types.StringValue(ps.SecurityContactPersonID)
+			state.InControlBoundary = types.BoolValue(ps.InControlBoundary)
+			state.InZeroTrustFocus = types.BoolValue(ps.InZeroTrustFocus)
+			state.Relevance = types.Int64Value(int64(ps.Relevance))
+			state.Confidentiality = types.Int64Value(int64(ps.Confidentiality))
+			state.Integrity = types.Int64Value(int64(ps.Integrity))
+			state.Availability = types.Int64Value(int64(ps.Availability))
+			state.DataTags = dt
+			state.ComplianceTags = ct
+			state.CustomerLabels = cl
+			state.SOCTags = st
+			state.AllowFlowsFromOutside = types.BoolValue(ps.FlowsFromOutside.Allow)
+			state.AllowFlowsToOutside = types.BoolValue(ps.FlowsToOutside.Allow)
+			state.MaturityStep1 = types.Int64Value(int64(ps.Maturity.Step1))
+			state.MaturityStep2 = types.Int64Value(int64(ps.Maturity.Step2))
+			state.MaturityStep3 = types.Int64Value(int64(ps.Maturity.Step3))
+			state.MaturityStep4 = types.Int64Value(int64(ps.Maturity.Step4))
+			state.MaturityStep5 = types.Int64Value(int64(ps.Maturity.Step5))
+
 			break
 		}
 	}

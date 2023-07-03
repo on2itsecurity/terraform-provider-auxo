@@ -5,7 +5,7 @@ package auxo
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 
@@ -67,7 +67,7 @@ func readFile(fileName string) ([]byte, error) {
 	}
 
 	defer f.Close()
-	fileContent, err := ioutil.ReadAll(f)
+	fileContent, err := io.ReadAll(f)
 
 	if err != nil {
 		return nil, err
