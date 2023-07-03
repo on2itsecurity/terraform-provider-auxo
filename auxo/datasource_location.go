@@ -49,8 +49,8 @@ func (d *locationDataSource) Configure(_ context.Context, req datasource.Configu
 // Schema defines the schema for the data source.
 func (d *locationDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description:         "A location which can be used in a state object to reflect the location of the resources.",
-		MarkdownDescription: "A location which can be used in a state object to reflect the location of the resources",
+		Description:         "A location which can be used in a state object to reflect the location of the resources. Either by specifying the name or the uniqueness_key",
+		MarkdownDescription: "A location which can be used in a state object to reflect the location of the resources. Either by specifying the name or the uniqueness_key",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description:         "Computed unique IDs of the location",

@@ -151,5 +151,6 @@ func (p *auxoProvider) DataSources(ctx context.Context) []func() datasource.Data
 	return []func() datasource.DataSource{
 		NewContactDataSource,
 		NewLocationDataSource,
+		NewProtectsurfaceDataSource,
 	}
 }
