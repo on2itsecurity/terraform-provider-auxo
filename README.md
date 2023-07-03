@@ -1,19 +1,6 @@
 # Terraform Provider Auxo
 
-*Work In Progress*
-
-However, the protectsurface, location and state resources are there and should work!
-
-Supported resources:
-* location
-* protectsurface
-* protectsurface_state
-* transaction_flow
-
-Supported data sources:
-* contact
-
-The provider can be found here: https://registry.terraform.io/providers/on2itsecurity/auxo/latest
+Provider and documentation can be found on the Terraform registry: https://registry.terraform.io/providers/on2itsecurity/auxo/latest
 
 ## Usage
 
@@ -23,7 +10,7 @@ To prevent your token from being exposed, you can use the `AUXOTOKEN` environmen
 This way it doesn't need to be set in the terraform file(s).
 
 ```shell
-export AUXOTOKEN="YOURSECRETTOKEN"
+export AUXO_TOKEN="YOURSECRETTOKEN"
 ```
 
 Now you can create a `main.tf` file and add the provider configuration.

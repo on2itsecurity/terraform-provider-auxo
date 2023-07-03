@@ -12,8 +12,8 @@ A protectsurface which can be used in a state object to reflect the protectsurfa
 ## Example Usage
 
 ```terraform
-data "auxo_location" "location_zaltbommel" {
-  name = "Datacenter Zaltbommel"
+data "auxo_protectsurface" "ps_mail" {
+  name = "Mail"
 }
 ```
 
@@ -27,4 +27,24 @@ data "auxo_location" "location_zaltbommel" {
 
 ### Read-Only
 
+- `allow_flows_from_outside` (Boolean) Allow flows from outside of the protectsurface coming in
+- `allow_flows_to_outside` (Boolean) Allow flows to go outside of the protectsurface
+- `availability` (Number) Availability of the resource protectsurface
+- `compliance_tags` (Set of String) Compliance tags of the resource protectsurface
+- `confidentiality` (Number) Confidentiality of the resource protectsurface
+- `customer_labels` (Map of String) Customer labels of the resource protectsurface
+- `data_tags` (Set of String) Data tags of the resource protectsurface
+- `description` (String) Description of the resource protectsurface
 - `id` (String) Computed unique IDs of the protectsurface
+- `in_control_boundary` (Boolean) This protect surface is within the 'control boundary'
+- `in_zero_trust_focus` (Boolean) This protect surface is within the 'zero trust focus' (actively maintained and monitored)
+- `integrity` (Number) Integrity of the resource protectsurface
+- `main_contact` (String) Main contact of the resource protectsurface
+- `maturity_step1` (Number) Maturity step 1
+- `maturity_step2` (Number) Maturity step 2
+- `maturity_step3` (Number) Maturity step 3
+- `maturity_step4` (Number) Maturity step 4
+- `maturity_step5` (Number) Maturity step 5
+- `relevance` (Number) Relevance of the resource protectsurface
+- `security_contact` (String) Security contact of the resource protectsurface
+- `soc_tags` (Set of String) SOC tags of the resource protectsurface, only use when advised by the SOC
