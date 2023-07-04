@@ -1,3 +1,13 @@
+ data "auxo_protectsurface" "ps_mail" {
+  name = "Mail"
+}
+
+data "auxo_contact" "rob" {
+  email = "rob.maas+tst@on2it.net"
+}
+ 
+resource auxo_measure ps_mail {
+  protectsurface = data.auxo_protectsurface.ps_mail.id
   measures = {
     flows-segmentation = {
       assigned       = true
@@ -24,4 +34,5 @@
       evidenced_by   = data.auxo_contact.rob.email
     }
   }
+}
 

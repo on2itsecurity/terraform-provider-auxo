@@ -142,6 +142,7 @@ func (p *auxoProvider) Resources(ctx context.Context) []func() resource.Resource
 	return []func() resource.Resource{
 		NewProtectsurfaceResource,
 		NewLocationResource,
+		NewMeasureResource,
 		NewStateResource,
 		NewTransactionflowResource,
 	}

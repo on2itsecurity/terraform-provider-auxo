@@ -126,7 +126,7 @@ func (r *transactionflowResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// Map resonse to schema
+	// Map response to schema
 	plan.Protectsurface = types.StringValue(ps.ID)
 	f = readFlowsFromPS(ps)
 	plan.Incoming_protectsurfaces_allow, _ = types.SetValueFrom(ctx, types.StringType, f.incomingPSAllow)
@@ -155,7 +155,7 @@ func (r *transactionflowResource) Read(ctx context.Context, req resource.ReadReq
 	// Get refreshed state from AUXO
 	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.Protectsurface.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error reading location", "unexpected error: "+err.Error())
+		resp.Diagnostics.AddError("Error reading transactionflows", "unexpected error: "+err.Error())
 		return
 	}
 
