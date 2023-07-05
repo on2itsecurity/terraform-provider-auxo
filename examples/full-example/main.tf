@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "auxo" {
-  name = "tailspin"
+  name = "tailspin" // This is only available when there is a config file (otherwise specify token directly or by env var (preferred))
 }
 
 // Get the contact based on the email address
@@ -39,8 +39,11 @@ resource "auxo_protectsurface" "ps_ad" {
   soc_tags                 = ["active-directory", "windows"]
   allow_flows_from_outside = false
   allow_flows_to_outside   = false
+}
 
-  // Represents the segmentation measure for this protect-surface
+resource auxo_measure "measure_ad" {
+  // Represents the measures for this protect-surface
+  protectsurface = auxo_protectsurface.ps_ad.id
   measures = {
     flows-segmentation = {
       assigned       = true
@@ -49,7 +52,15 @@ resource "auxo_protectsurface" "ps_ad" {
       implemented_by = data.auxo_contact.rob.email
       evidenced      = false
       evidenced_by   = data.auxo_contact.rob.email
-    } 
+    }
+    encryption-in-transit = {
+      assigned       = true
+      assigned_by    = data.auxo_contact.rob.email
+      implemented    = true
+      implemented_by = data.auxo_contact.rob.email
+      evidenced      = false
+      evidenced_by   = data.auxo_contact.rob.email
+    }
   }
 }
 

@@ -3,9 +3,12 @@ package auxo
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/on2itsecurity/go-auxo"
@@ -16,6 +19,7 @@ var _ resource.Resource = &transactionflowResource{}
 
 type transactionflowResource struct {
 	client *auxo.Client
+	mutex  *sync.Mutex
 }
 
 type transactionflowResourceModel struct {
@@ -47,7 +51,9 @@ func (r *transactionflowResource) Configure(_ context.Context, req resource.Conf
 	}
 
 	// Retrieve the client from the provider config
-	r.client = req.ProviderData.(*auxo.Client)
+	c := req.ProviderData.(*auxoClient)
+	r.client = c.client
+	r.mutex = c.m
 }
 
 func (r *transactionflowResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -64,31 +70,50 @@ func (r *transactionflowResource) Schema(ctx context.Context, req resource.Schem
 				Description:         "The IDs of the protectsurface that are allowed to send traffic to this protectsurface",
 				MarkdownDescription: "The IDs of the protectsurface that are allowed to send traffic to this protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"incoming_protectsurfaces_block": schema.SetAttribute{
 				Description:         "The IDs of the protectsurface that are blocked to send traffic to this protectsurface",
 				MarkdownDescription: "The IDs of the protectsurface that are blocked to send traffic to this protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"outgoing_protectsurfaces_allow": schema.SetAttribute{
 				Description:         "The IDs of the protectsurface that are allowed to send traffic to from this protectsurface",
 				MarkdownDescription: "The IDs of the protectsurface that are allowed to send traffic to from this protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"outgoing_protectsurfaces_block": schema.SetAttribute{
 				Description:         "The IDs of the protectsurface that are blocked to send traffic to from this protectsurface",
 				MarkdownDescription: "The IDs of the protectsurface that are blocked to send traffic to from this protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
 }
 
 func (r *transactionflowResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	var plan transactionflowResourceModel
 
 	diags := req.Plan.Get(ctx, &plan)
@@ -126,7 +151,7 @@ func (r *transactionflowResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// Map resonse to schema
+	// Map response to schema
 	plan.Protectsurface = types.StringValue(ps.ID)
 	f = readFlowsFromPS(ps)
 	plan.Incoming_protectsurfaces_allow, _ = types.SetValueFrom(ctx, types.StringType, f.incomingPSAllow)
@@ -155,7 +180,7 @@ func (r *transactionflowResource) Read(ctx context.Context, req resource.ReadReq
 	// Get refreshed state from AUXO
 	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.Protectsurface.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error reading location", "unexpected error: "+err.Error())
+		resp.Diagnostics.AddError("Error reading transactionflows", "unexpected error: "+err.Error())
 		return
 	}
 
@@ -177,6 +202,9 @@ func (r *transactionflowResource) Read(ctx context.Context, req resource.ReadReq
 }
 
 func (r *transactionflowResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	//Retrieve values from plan
 	var plan transactionflowResourceModel
 
@@ -235,6 +263,9 @@ func (r *transactionflowResource) Update(ctx context.Context, req resource.Updat
 }
 
 func (r *transactionflowResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	// Retrieve values from state
 	var state transactionflowResourceModel
 	diags := req.State.Get(ctx, &state)
@@ -260,6 +291,11 @@ func (r *transactionflowResource) Delete(ctx context.Context, req resource.Delet
 // readFlowsFromPS, get a ProtectSurface and return a flows struct, which can be used to map directly on plan & state
 func readFlowsFromPS(ps *zerotrust.ProtectSurface) flows {
 	var f flows
+	//Prevent nil pointer (state expects empty, when not defined)
+	f.incomingPSAllow = []basetypes.StringValue{}
+	f.incomingPSBlock = []basetypes.StringValue{}
+	f.outgoingPSAllow = []basetypes.StringValue{}
+	f.outgoingPSBlock = []basetypes.StringValue{}
 
 	for psID, flow := range ps.FlowsFromOtherPS {
 		if flow.Allow {

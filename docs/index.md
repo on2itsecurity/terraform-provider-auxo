@@ -9,10 +9,10 @@ description: |-
 
 This provider is build to interact with the [ON2IT AUXO Zero Trust Platform](https://on2it.net/managed-security/#section-auxo).
 
-When upgrading to version 0.0.7, the following changes might break your configuration.
+When upgrading to version 1.0.1, the following changes might break your configuration.
 
 - Environment variable AUXOTOKEN is now AUXO_TOKEN
-- Measure format within the `auxo_protectsurface` resource has changed.
+- Measures have now their own resource `auxo_measure`
 
 ## Example Usage
 
@@ -21,13 +21,14 @@ terraform {
   required_providers {
     auxo = {
       source = "on2itsecurity/auxo"
-      version = "0.0.6"
+      version = "1.0.1"
     }
   }
 }
 ```
 
 Provide your AUXO token either with setting an environment variable `AUXO_TOKEN` (recommended) or by setting it in the provider configuration (not recommended).
+For US tenants, use `us.api.on2it.net` as the API address, `url` attribute in the provider configuration.
 
 ```shell
 export AUXO_TOKEN=<YOURAUXOTOKEN>
@@ -46,6 +47,7 @@ provider "auxo" {
 ```terraform
 provider "auxo" {
   name = "tenant2"
+  url = "us.api.on2it.net"
 }
 ```
 
@@ -67,7 +69,7 @@ The `name` configuration attribute will take precedence over the `token` and `ur
 			"alias": "tenant2",
 			"description": "This is the token for tenant 2",
 			"token": "VerySecureTokenTenant2",
-			"apiaddress": "api.on2it.net",
+			"apiaddress": "us.api.on2it.net",
 			"debug": false
 		}
     ]
