@@ -3,6 +3,7 @@ package auxo
 import (
 	"context"
 	"os"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -23,6 +24,11 @@ type auxoProviderModel struct {
 	Token  types.String `tfsdk:"token"`
 	Name   types.String `tfsdk:"name"`
 	Config types.String `tfsdk:"config"`
+}
+
+type auxoClient struct {
+	client *auxo.Client
+	m      *sync.Mutex
 }
 
 // New returns a new provider.Provider.
@@ -127,15 +133,19 @@ func (p *auxoProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 
 	// Create data/clients and persist to resp.DataSourceData and
 	// resp.ResourceData as appropriate.
-	auxoClient, err := auxo.NewClient(url, token, false)
+	client, err := auxo.NewClient(url, token, false)
+	c := &auxoClient{
+		client: client,
+		m:      &sync.Mutex{},
+	}
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to create AUXO API client",
 			"An unexpected error occurred when creating the AUXO API client. "+
 				"client error: "+err.Error())
 	}
 
-	resp.DataSourceData = auxoClient
-	resp.ResourceData = auxoClient
+	resp.DataSourceData = client
+	resp.ResourceData = c
 }
 
 func (p *auxoProvider) Resources(ctx context.Context) []func() resource.Resource {

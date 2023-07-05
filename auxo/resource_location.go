@@ -2,6 +2,7 @@ package auxo
 
 import (
 	"context"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -18,6 +19,7 @@ var _ resource.Resource = &locationResource{}
 
 type locationResource struct {
 	client *auxo.Client
+	mutex  *sync.Mutex
 }
 
 type locationResourceModel struct {
@@ -42,7 +44,9 @@ func (r *locationResource) Configure(_ context.Context, req resource.ConfigureRe
 	}
 
 	// Retrieve the client from the provider config
-	r.client = req.ProviderData.(*auxo.Client)
+	c := req.ProviderData.(*auxoClient)
+	r.client = c.client
+	r.mutex = c.m
 }
 
 func (r *locationResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {

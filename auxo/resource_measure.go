@@ -3,6 +3,7 @@ package auxo
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -21,6 +22,7 @@ var _ resource.Resource = &measureResource{}
 
 type measureResource struct {
 	client *auxo.Client
+	mutex  *sync.Mutex
 }
 
 type measureResourceModel struct {
@@ -54,7 +56,9 @@ func (r *measureResource) Configure(_ context.Context, req resource.ConfigureReq
 	}
 
 	// Retrieve the client from the provider config
-	r.client = req.ProviderData.(*auxo.Client)
+	c := req.ProviderData.(*auxoClient)
+	r.client = c.client
+	r.mutex = c.m
 }
 
 func (r *measureResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -148,6 +152,9 @@ func (r *measureResource) Schema(ctx context.Context, req resource.SchemaRequest
 }
 
 func (r *measureResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	var plan measureResourceModel
 
 	diags := req.Plan.Get(ctx, &plan)
@@ -217,6 +224,9 @@ func (r *measureResource) Read(ctx context.Context, req resource.ReadRequest, re
 }
 
 func (r *measureResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	var plan measureResourceModel
 
 	diags := req.Plan.Get(ctx, &plan)
@@ -257,6 +267,9 @@ func (r *measureResource) Update(ctx context.Context, req resource.UpdateRequest
 }
 
 func (r *measureResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	// Retrieve values from state
 	var state measureResourceModel
 	diags := req.State.Get(ctx, &state)
@@ -265,11 +278,11 @@ func (r *measureResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	// Get PS and remove flows
+	// Get PS and remove measures
 	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.Protectsurface.ValueString())
 	ps.Measures = map[string]zerotrust.MeasureState{}
 
-	// Update PS, with deleted flows
+	// Update PS, with deleted measures
 	_, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(*ps, true)
 
 	if err != nil {

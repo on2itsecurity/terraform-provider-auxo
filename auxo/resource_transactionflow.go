@@ -3,6 +3,7 @@ package auxo
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -16,6 +17,7 @@ var _ resource.Resource = &transactionflowResource{}
 
 type transactionflowResource struct {
 	client *auxo.Client
+	mutex  *sync.Mutex
 }
 
 type transactionflowResourceModel struct {
@@ -47,7 +49,9 @@ func (r *transactionflowResource) Configure(_ context.Context, req resource.Conf
 	}
 
 	// Retrieve the client from the provider config
-	r.client = req.ProviderData.(*auxo.Client)
+	c := req.ProviderData.(*auxoClient)
+	r.client = c.client
+	r.mutex = c.m
 }
 
 func (r *transactionflowResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -89,6 +93,9 @@ func (r *transactionflowResource) Schema(ctx context.Context, req resource.Schem
 }
 
 func (r *transactionflowResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	var plan transactionflowResourceModel
 
 	diags := req.Plan.Get(ctx, &plan)
@@ -177,6 +184,9 @@ func (r *transactionflowResource) Read(ctx context.Context, req resource.ReadReq
 }
 
 func (r *transactionflowResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	//Retrieve values from plan
 	var plan transactionflowResourceModel
 
@@ -235,6 +245,9 @@ func (r *transactionflowResource) Update(ctx context.Context, req resource.Updat
 }
 
 func (r *transactionflowResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	// Retrieve values from state
 	var state transactionflowResourceModel
 	diags := req.State.Get(ctx, &state)

@@ -2,6 +2,7 @@ package auxo
 
 import (
 	"context"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -19,6 +20,7 @@ var _ resource.Resource = &stateResource{}
 
 type stateResource struct {
 	client *auxo.Client
+	mutex  *sync.Mutex
 }
 
 type stateResourceModel struct {
@@ -47,7 +49,9 @@ func (r *stateResource) Configure(_ context.Context, req resource.ConfigureReque
 	}
 
 	// Retrieve the client from the provider config
-	r.client = req.ProviderData.(*auxo.Client)
+	c := req.ProviderData.(*auxoClient)
+	r.client = c.client
+	r.mutex = c.m
 }
 
 func (r *stateResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {

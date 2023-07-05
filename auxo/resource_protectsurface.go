@@ -2,6 +2,7 @@ package auxo
 
 import (
 	"context"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -24,6 +25,7 @@ var _ resource.Resource = &protectsurfaceResource{}
 
 type protectsurfaceResource struct {
 	client *auxo.Client
+	mutex  *sync.Mutex
 }
 
 type protectsurfaceResourceModel struct {
@@ -66,7 +68,9 @@ func (r *protectsurfaceResource) Configure(_ context.Context, req resource.Confi
 	}
 
 	// Retrieve the client from the provider config
-	r.client = req.ProviderData.(*auxo.Client)
+	c := req.ProviderData.(*auxoClient)
+	r.client = c.client
+	r.mutex = c.m
 }
 
 func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
