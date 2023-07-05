@@ -7,6 +7,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/on2itsecurity/go-auxo"
@@ -68,25 +70,41 @@ func (r *transactionflowResource) Schema(ctx context.Context, req resource.Schem
 				Description:         "The IDs of the protectsurface that are allowed to send traffic to this protectsurface",
 				MarkdownDescription: "The IDs of the protectsurface that are allowed to send traffic to this protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"incoming_protectsurfaces_block": schema.SetAttribute{
 				Description:         "The IDs of the protectsurface that are blocked to send traffic to this protectsurface",
 				MarkdownDescription: "The IDs of the protectsurface that are blocked to send traffic to this protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"outgoing_protectsurfaces_allow": schema.SetAttribute{
 				Description:         "The IDs of the protectsurface that are allowed to send traffic to from this protectsurface",
 				MarkdownDescription: "The IDs of the protectsurface that are allowed to send traffic to from this protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"outgoing_protectsurfaces_block": schema.SetAttribute{
 				Description:         "The IDs of the protectsurface that are blocked to send traffic to from this protectsurface",
 				MarkdownDescription: "The IDs of the protectsurface that are blocked to send traffic to from this protectsurface",
 				Optional:            true,
+				Computed:            true,
 				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -273,6 +291,11 @@ func (r *transactionflowResource) Delete(ctx context.Context, req resource.Delet
 // readFlowsFromPS, get a ProtectSurface and return a flows struct, which can be used to map directly on plan & state
 func readFlowsFromPS(ps *zerotrust.ProtectSurface) flows {
 	var f flows
+	//Prevent nil pointer (state expects empty, when not defined)
+	f.incomingPSAllow = []basetypes.StringValue{}
+	f.incomingPSBlock = []basetypes.StringValue{}
+	f.outgoingPSAllow = []basetypes.StringValue{}
+	f.outgoingPSBlock = []basetypes.StringValue{}
 
 	for psID, flow := range ps.FlowsFromOtherPS {
 		if flow.Allow {
