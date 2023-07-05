@@ -1,5 +1,5 @@
 ---
-page_title: Provider: AUXO
+page_title: "Provider: AUXO"
 subcategory: ""
 description: |-
   Terraform provider for interacting with AUXO.
