@@ -29,15 +29,20 @@ type measureResourceModel struct {
 }
 
 type measure struct {
-	Assigned              types.Bool   `tfsdk:"assigned"`
-	Assigned_by           types.String `tfsdk:"assigned_by"`
-	Assigned_timestamp    types.Int64  `tfsdk:"assigned_timestamp"`
-	Implemented           types.Bool   `tfsdk:"implemented"`
-	Implemented_by        types.String `tfsdk:"implemented_by"`
-	Implemented_timestamp types.Int64  `tfsdk:"implemented_timestamp"`
-	Evidenced             types.Bool   `tfsdk:"evidenced"`
-	Evidenced_by          types.String `tfsdk:"evidenced_by"`
-	Evidenced_timestamp   types.Int64  `tfsdk:"evidenced_timestamp"`
+	Assigned                     types.Bool   `tfsdk:"assigned"`
+	Assigned_by                  types.String `tfsdk:"assigned_by"`
+	Assigned_timestamp           types.Int64  `tfsdk:"assigned_timestamp"`
+	Implemented                  types.Bool   `tfsdk:"implemented"`
+	Implemented_by               types.String `tfsdk:"implemented_by"`
+	Implemented_timestamp        types.Int64  `tfsdk:"implemented_timestamp"`
+	Evidenced                    types.Bool   `tfsdk:"evidenced"`
+	Evidenced_by                 types.String `tfsdk:"evidenced_by"`
+	Evidenced_timestamp          types.Int64  `tfsdk:"evidenced_timestamp"`
+	RiskAcceptance_by            types.String `tfsdk:"risk_acceptance_by"`
+	RiskAcceptance_timestamp     types.Int64  `tfsdk:"risk_acceptance_timestamp"`
+	RiskNoImplementationAccepted types.Bool   `tfsdk:"risk_no_implementation_accepted"`
+	RiskNoEvidenceAccepted       types.Bool   `tfsdk:"risk_no_evidence_accepted"`
+	RiskAcceptedComments         types.String `tfsdk:"risk_accepted_comments"`
 }
 
 func NewMeasureResource() resource.Resource {
@@ -131,6 +136,35 @@ func (r *measureResource) Schema(ctx context.Context, req resource.SchemaRequest
 							PlanModifiers: []planmodifier.Int64{
 								int64planmodifier.UseStateForUnknown(),
 							},
+						},
+						"risk_acceptance_by": schema.StringAttribute{
+							Description:         "Who accepted the risk(s) on the status of this measure",
+							MarkdownDescription: "Who accepted the risk(s) on the status of this measure",
+							Optional:            true,
+						},
+						"risk_acceptance_timestamp": schema.Int64Attribute{
+							Description:         "When was the risk(s) on the status of this measure accepted",
+							MarkdownDescription: "When was the risk(s) on the status of this measure accepted",
+							Optional:            true,
+							Computed:            true,
+							PlanModifiers: []planmodifier.Int64{
+								int64planmodifier.UseStateForUnknown(),
+							},
+						},
+						"risk_no_implementation_accepted": schema.BoolAttribute{
+							Description:         "Is the risk of not implementing this measure accepted",
+							MarkdownDescription: "Is the risk of not implementing this measure accepted",
+							Optional:            true,
+						},
+						"risk_no_evidence_accepted": schema.BoolAttribute{
+							Description:         "Is the risk of not having evidence for this measure accepted",
+							MarkdownDescription: "Is the risk of not having evidence for this measure accepted",
+							Optional:            true,
+						},
+						"risk_accepted_comments": schema.StringAttribute{
+							Description:         "Comments on the acceptance of the risk(s) on the status of this measure",
+							MarkdownDescription: "Comments on the acceptance of the risk(s) on the status of this measure",
+							Optional:            true,
 						},
 					},
 				},
@@ -393,10 +427,29 @@ func (r *measureResource) resourceModelToCompletePS(plan *measureResourceModel, 
 			}
 		}
 
+		var riskAcceptance *zerotrust.RiskAcceptance
+		if !m.RiskNoEvidenceAccepted.IsNull() || !m.RiskNoImplementationAccepted.IsNull() || m.RiskAcceptedComments.IsNull() {
+			var riskAcceptance_timestamp int
+			if !(m.RiskAcceptance_timestamp.IsUnknown() || m.RiskAcceptance_timestamp.IsNull()) {
+				riskAcceptance_timestamp = int(m.RiskAcceptance_timestamp.ValueInt64())
+			} else {
+				riskAcceptance_timestamp = int(time.Now().Unix())
+			}
+
+			riskAcceptance = &zerotrust.RiskAcceptance{
+				RiskNoEvidenceAccepted:       m.RiskNoEvidenceAccepted.ValueBool(),
+				RiskNoImplementationAccepted: m.RiskNoImplementationAccepted.ValueBool(),
+				RiskAcceptedComment:          m.RiskAcceptedComments.ValueString(),
+				LastDeterminedByPersonID:     m.RiskAcceptance_by.ValueString(),
+				LastDeterminedTimestamp:      riskAcceptance_timestamp,
+			}
+		}
+
 		measureMap[k] = zerotrust.MeasureState{
 			Assignment:     assignment,
 			Implementation: implementation,
 			Evidence:       evidence,
+			RiskAcceptance: riskAcceptance,
 		}
 	}
 
