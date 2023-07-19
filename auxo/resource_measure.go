@@ -9,10 +9,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/on2itsecurity/go-auxo"
 	"github.com/on2itsecurity/go-auxo/zerotrust"
@@ -86,8 +84,6 @@ func (r *measureResource) Schema(ctx context.Context, req resource.SchemaRequest
 							Description:         "Who assigned this measure to the protectsurface",
 							MarkdownDescription: "Who assigned this measure to the protectsurface",
 							Optional:            true,
-							Computed:            true,
-							Default:             stringdefault.StaticString(""),
 						},
 						"assigned_timestamp": schema.Int64Attribute{
 							Description:         "When was this measure assigned to the protectsurface",
@@ -102,15 +98,11 @@ func (r *measureResource) Schema(ctx context.Context, req resource.SchemaRequest
 							Description:         "Is this measure implemented to the protectsurface",
 							MarkdownDescription: "Is this measure implemented to the protectsurface",
 							Optional:            true,
-							Computed:            true,
-							Default:             booldefault.StaticBool(false),
 						},
 						"implemented_by": schema.StringAttribute{
 							Description:         "Who implemented this measure to the protectsurface",
 							MarkdownDescription: "Who implemented this measure to the protectsurface",
 							Optional:            true,
-							Computed:            true,
-							Default:             stringdefault.StaticString(""),
 						},
 						"implemented_timestamp": schema.Int64Attribute{
 							Description:         "When was this measure implemented to the protectsurface",
@@ -125,15 +117,11 @@ func (r *measureResource) Schema(ctx context.Context, req resource.SchemaRequest
 							Description:         "Is there evidence that this measure is implemented",
 							MarkdownDescription: "Is there evidence that this measure is implemented",
 							Optional:            true,
-							Computed:            true,
-							Default:             booldefault.StaticBool(false),
 						},
 						"evidenced_by": schema.StringAttribute{
 							Description:         "Who evidenced that this measure is implementd",
 							MarkdownDescription: "Who evidenced that this measure is implementd",
 							Optional:            true,
-							Computed:            true,
-							Default:             stringdefault.StaticString(""),
 						},
 						"evidenced_timestamp": schema.Int64Attribute{
 							Description:         "When was this measure evidenced",
@@ -311,17 +299,24 @@ func getMeasuresFromMap(measureMap map[string]zerotrust.MeasureState) map[string
 	measures := make(map[string]measure, len(measureMap))
 
 	for k, state := range measureMap {
-		measures[k] = measure{
-			Assigned:              types.BoolValue(state.Assignment.Assigned),
-			Assigned_by:           types.StringValue(state.Assignment.LastDeterminedByPersonID),
-			Assigned_timestamp:    types.Int64Value(int64(state.Assignment.LastDeterminedTimestamp)),
-			Implemented:           types.BoolValue(state.Implementation.Implemented),
-			Implemented_by:        types.StringValue(state.Implementation.LastDeterminedByPersonID),
-			Implemented_timestamp: types.Int64Value(int64(state.Implementation.LastDeterminedTimestamp)),
-			Evidenced:             types.BoolValue(state.Evidence.Evidenced),
-			Evidenced_by:          types.StringValue(state.Evidence.LastDeterminedByPersonID),
-			Evidenced_timestamp:   types.Int64Value(int64(state.Evidence.LastDeterminedTimestamp)),
+		var m measure
+		if state.Assignment != nil {
+			m.Assigned = types.BoolValue(state.Assignment.Assigned)
+			m.Assigned_by = types.StringValue(state.Assignment.LastDeterminedByPersonID)
+			m.Assigned_timestamp = types.Int64Value(int64(state.Assignment.LastDeterminedTimestamp))
 		}
+		if state.Implementation != nil {
+			m.Implemented = types.BoolValue(state.Implementation.Implemented)
+			m.Implemented_by = types.StringValue(state.Implementation.LastDeterminedByPersonID)
+			m.Implemented_timestamp = types.Int64Value(int64(state.Implementation.LastDeterminedTimestamp))
+		}
+		if state.Evidence != nil {
+			m.Evidenced = types.BoolValue(state.Evidence.Evidenced)
+			m.Evidenced_by = types.StringValue(state.Evidence.LastDeterminedByPersonID)
+			m.Evidenced_timestamp = types.Int64Value(int64(state.Evidence.LastDeterminedTimestamp))
+		}
+
+		measures[k] = m
 	}
 
 	return measures
@@ -350,49 +345,58 @@ func (r *measureResource) resourceModelToCompletePS(plan *measureResourceModel, 
 			return nil, diags
 		}
 
-		var assigned_timestamp int
-		if !(m.Assigned_timestamp.IsUnknown() || m.Assigned_timestamp.IsNull()) {
-			assigned_timestamp = int(m.Assigned_timestamp.ValueInt64())
-		} else {
-			assigned_timestamp = int(time.Now().Unix())
+		var assignment *zerotrust.Assignment
+		if !m.Assigned.IsNull() {
+			var assigned_timestamp int
+			if !(m.Assigned_timestamp.IsUnknown() || m.Assigned_timestamp.IsNull()) {
+				assigned_timestamp = int(m.Assigned_timestamp.ValueInt64())
+			} else {
+				assigned_timestamp = int(time.Now().Unix())
+			}
+
+			assignment = &zerotrust.Assignment{
+				Assigned:                 m.Assigned.ValueBool(),
+				LastDeterminedByPersonID: m.Assigned_by.ValueString(),
+				LastDeterminedTimestamp:  assigned_timestamp,
+			}
 		}
 
-		assignment := zerotrust.Assignment{
-			Assigned:                 m.Assigned.ValueBool(),
-			LastDeterminedByPersonID: m.Assigned_by.ValueString(),
-			LastDeterminedTimestamp:  assigned_timestamp,
+		var implementation *zerotrust.Implementation
+		if !m.Implemented.IsNull() {
+			var implemented_timestamp int
+			if !(m.Implemented_timestamp.IsUnknown() || m.Implemented_timestamp.IsNull()) {
+				implemented_timestamp = int(m.Implemented_timestamp.ValueInt64())
+			} else {
+				implemented_timestamp = int(time.Now().Unix())
+			}
+
+			implementation = &zerotrust.Implementation{
+				Implemented:              m.Implemented.ValueBool(),
+				LastDeterminedByPersonID: m.Implemented_by.ValueString(),
+				LastDeterminedTimestamp:  implemented_timestamp,
+			}
 		}
 
-		var implemented_timestamp int
-		if !(m.Implemented_timestamp.IsUnknown() || m.Implemented_timestamp.IsNull()) {
-			implemented_timestamp = int(m.Implemented_timestamp.ValueInt64())
-		} else {
-			implemented_timestamp = int(time.Now().Unix())
-		}
+		var evidence *zerotrust.Evidence
+		if !m.Evidenced.IsNull() {
+			var evidenced_timestamp int
+			if !(m.Evidenced_timestamp.IsUnknown() || m.Evidenced_timestamp.IsNull()) {
+				evidenced_timestamp = int(m.Evidenced_timestamp.ValueInt64())
+			} else {
+				evidenced_timestamp = int(time.Now().Unix())
+			}
 
-		implementation := zerotrust.Implementation{
-			Implemented:              m.Implemented.ValueBool(),
-			LastDeterminedByPersonID: m.Implemented_by.ValueString(),
-			LastDeterminedTimestamp:  implemented_timestamp,
-		}
-
-		var evidenced_timestamp int
-		if !(m.Evidenced_timestamp.IsUnknown() || m.Evidenced_timestamp.IsNull()) {
-			evidenced_timestamp = int(m.Evidenced_timestamp.ValueInt64())
-		} else {
-			evidenced_timestamp = int(time.Now().Unix())
-		}
-
-		evidence := zerotrust.Evidence{
-			Evidenced:                m.Evidenced.ValueBool(),
-			LastDeterminedByPersonID: m.Evidenced_by.ValueString(),
-			LastDeterminedTimestamp:  evidenced_timestamp,
+			evidence = &zerotrust.Evidence{
+				Evidenced:                m.Evidenced.ValueBool(),
+				LastDeterminedByPersonID: m.Evidenced_by.ValueString(),
+				LastDeterminedTimestamp:  evidenced_timestamp,
+			}
 		}
 
 		measureMap[k] = zerotrust.MeasureState{
-			Assignment:     &assignment,
-			Implementation: &implementation,
-			Evidence:       &evidence,
+			Assignment:     assignment,
+			Implementation: implementation,
+			Evidence:       evidence,
 		}
 	}
 
