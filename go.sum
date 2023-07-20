@@ -43,8 +43,8 @@ github.com/mitchellh/go-testing-interface v1.14.1 h1:jrgshOhYAUVNMAJiKbEu7EqAwgJ
 github.com/mitchellh/go-testing-interface v1.14.1/go.mod h1:gfgS7OtZj6MA4U1UrDRp04twqAjfvlZyCfX3sDjEym8=
 github.com/oklog/run v1.1.0 h1:GEenZ1cK0+q0+wsJew9qUg/DyD8k3JzYsZAi5gYi2mA=
 github.com/oklog/run v1.1.0/go.mod h1:sVPdnTZT1zYwAJeCMu2Th4T21pA3FPOQRfWjQlk7DVU=
-github.com/on2itsecurity/go-auxo v1.0.6 h1:XGbg13f3i8UBSpaCNtownlzAfTgWfpD1WGjQTPLnIoU=
-github.com/on2itsecurity/go-auxo v1.0.6/go.mod h1:1iuRwQaYNkvL8mDvAxrHTCwX0EG8FcnjKGaBN8r02W4=
+github.com/on2itsecurity/go-auxo v1.0.7 h1:4wDRmC0Pja+hL+ZFD4k96q/IuQOWERN3W0cPNsS5fkU=
+github.com/on2itsecurity/go-auxo v1.0.7/go.mod h1:1iuRwQaYNkvL8mDvAxrHTCwX0EG8FcnjKGaBN8r02W4=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
