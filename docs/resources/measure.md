@@ -9,6 +9,8 @@ description: |-
 
 A Measure resource represents the measures for the specified protectsurface.
 
+When setting, `implementation`, `evidence` or `acceptance`, the `person_id` is required.
+
 ## Example Usage
 
 ```terraform
@@ -24,12 +26,17 @@ resource auxo_measure ps_mail {
   protectsurface = data.auxo_protectsurface.ps_mail.id
   measures = {
     flows-segmentation = {
-      assigned       = true
-      assigned_by    = data.auxo_contact.rob.email
-      implemented    = true
-      implemented_by = data.auxo_contact.rob.email
-      evidenced      = false
-      evidenced_by   = data.auxo_contact.rob.email
+      assigned                        = true
+      assigned_by                     = data.auxo_contact.rob.email
+      implemented                     = true
+      implemented_by                  = data.auxo_contact.rob.email
+      evidenced                       = false
+      evidenced_by                    = data.auxo_contact.rob.email
+      risk_no_implementation_accepted = false
+      risk_acceptance_by              = data.auxo_contact.rob.email
+      risk_no_evidence_accepted       = true
+      risk_accepted_comment           = "This is a test"
+
     },
     encryption-at-rest = {
       assigned       = true
@@ -79,6 +86,11 @@ Optional:
 - `implemented` (Boolean) Is this measure implemented to the protectsurface
 - `implemented_by` (String) Who implemented this measure to the protectsurface
 - `implemented_timestamp` (Number) When was this measure implemented to the protectsurface
+- `risk_acceptance_by` (String) Who accepted the risk(s) on the status of this measure
+- `risk_acceptance_timestamp` (Number) When was the risk(s) on the status of this measure accepted
+- `risk_accepted_comment` (String) Comment on the acceptance of the risk(s) on the status of this measure
+- `risk_no_evidence_accepted` (Boolean) Is the risk of not having evidence for this measure accepted
+- `risk_no_implementation_accepted` (Boolean) Is the risk of not implementing this measure accepted
 
 ### Default measures
 
