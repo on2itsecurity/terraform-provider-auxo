@@ -160,6 +160,7 @@ func (p *auxoProvider) Resources(ctx context.Context) []func() resource.Resource
 
 func (p *auxoProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewAssetDataSource,
 		NewContactDataSource,
 		NewLocationDataSource,
 		NewProtectsurfaceDataSource,
