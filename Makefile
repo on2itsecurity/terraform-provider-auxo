@@ -3,7 +3,7 @@ HOSTNAME=registry.terraform.io
 NAMESPACE=on2itsecurity
 NAME=auxo
 BINARY=terraform-provider-${NAME}
-VERSION=1.0.2
+VERSION=1.0.3
 OS_ARCH=darwin_arm64 #amd64
 
 default: build
