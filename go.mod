@@ -3,7 +3,7 @@ module github.com/on2itsecurity/terraform-provider-auxo
 go 1.20
 
 require (
-	github.com/hashicorp/terraform-plugin-framework v1.4.1
+	github.com/hashicorp/terraform-plugin-framework v1.4.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/on2itsecurity/go-auxo v1.0.8
 )
