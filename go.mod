@@ -7,7 +7,7 @@ toolchain go1.21.7
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.7.0
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/on2itsecurity/go-auxo v1.0.9
+	github.com/on2itsecurity/go-auxo v1.0.10
 )
 
 require (
@@ -31,8 +31,8 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/oklog/run v1.1.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/grpc v1.62.1 // indirect
