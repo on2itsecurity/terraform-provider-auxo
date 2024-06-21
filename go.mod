@@ -5,21 +5,21 @@ go 1.21
 toolchain go1.21.7
 
 require (
-	github.com/hashicorp/terraform-plugin-framework v1.8.0
+	github.com/hashicorp/terraform-plugin-framework v1.9.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/on2itsecurity/go-auxo v1.0.10
 )
 
 require (
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/hashicorp/terraform-plugin-go v0.22.2 // indirect
+	github.com/hashicorp/terraform-plugin-go v0.23.0 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.9.0 // indirect
 	github.com/hashicorp/terraform-registry-address v0.2.3 // indirect
 	github.com/hashicorp/terraform-svchost v0.1.1 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
+	google.golang.org/protobuf v1.34.0 // indirect
 )
 
 require (
