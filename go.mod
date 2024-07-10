@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.7
 
 require (
-	github.com/hashicorp/terraform-plugin-framework v1.9.0
+	github.com/hashicorp/terraform-plugin-framework v1.10.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/on2itsecurity/go-auxo v1.0.10
 )
