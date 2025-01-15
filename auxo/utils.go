@@ -14,6 +14,11 @@ type apiError struct {
 	Message string `json:"error_message"`
 }
 
+// BoolPtr returns a pointer to a (given) bool
+func boolPtr(b bool) *bool {
+	return &b
+}
+
 // getAPIError returns an apiError struct from a go-auxo error
 func getAPIError(err error) apiError {
 	var apiErr apiError

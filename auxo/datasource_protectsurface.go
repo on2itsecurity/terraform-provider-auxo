@@ -158,12 +158,12 @@ func (d *protectsurfaceDataSource) Schema(_ context.Context, _ datasource.Schema
 			"allow_flows_from_outside": schema.BoolAttribute{
 				Description:         "Allow flows from outside of the protectsurface coming in",
 				MarkdownDescription: "Allow flows from outside of the protectsurface coming in",
-				Computed:            true,
+				Optional:            true,
 			},
 			"allow_flows_to_outside": schema.BoolAttribute{
 				Description:         "Allow flows to go outside of the protectsurface",
 				MarkdownDescription: "Allow flows to go outside of the protectsurface",
-				Computed:            true,
+				Optional:            true,
 			},
 			"maturity_step1": schema.Int64Attribute{
 				Description:         "Maturity step 1",
@@ -262,8 +262,8 @@ func (d *protectsurfaceDataSource) Read(ctx context.Context, req datasource.Read
 			state.ComplianceTags = ct
 			state.CustomerLabels = cl
 			state.SOCTags = st
-			state.AllowFlowsFromOutside = types.BoolValue(ps.FlowsFromOutside.Allow)
-			state.AllowFlowsToOutside = types.BoolValue(ps.FlowsToOutside.Allow)
+			state.AllowFlowsFromOutside = types.BoolPointerValue(ps.FlowsFromOutside.Allow)
+			state.AllowFlowsToOutside = types.BoolPointerValue(ps.FlowsToOutside.Allow)
 			state.MaturityStep1 = types.Int64Value(int64(ps.Maturity.Step1))
 			state.MaturityStep2 = types.Int64Value(int64(ps.Maturity.Step2))
 			state.MaturityStep3 = types.Int64Value(int64(ps.Maturity.Step3))

@@ -208,15 +208,11 @@ func (r *protectsurfaceResource) Schema(ctx context.Context, req resource.Schema
 				Description:         "Allow flows from outside of the protectsurface coming in",
 				MarkdownDescription: "Allow flows from outside of the protectsurface coming in",
 				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
 			},
 			"allow_flows_to_outside": schema.BoolAttribute{
 				Description:         "Allow flows to go outside of the protectsurface",
 				MarkdownDescription: "Allow flows to go outside of the protectsurface",
 				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
 			},
 			"maturity_step1": schema.Int64Attribute{
 				Description:         "Maturity step 1",
@@ -424,12 +420,8 @@ func resourceModelToProtectsurface(plan *protectsurfaceResourceModel, ctx contex
 		ComplianceTags:          ct,
 		CustomerLabels:          cl,
 		SocTags:                 st,
-		FlowsFromOutside: zerotrust.Flow{
-			Allow: plan.AllowFlowsFromOutside.ValueBool(),
-		},
-		FlowsToOutside: zerotrust.Flow{
-			Allow: plan.AllowFlowsToOutside.ValueBool(),
-		},
+		FlowsFromOutside:        zerotrust.Flow{Allow: plan.AllowFlowsFromOutside.ValueBoolPointer()},
+		FlowsToOutside:          zerotrust.Flow{Allow: plan.AllowFlowsToOutside.ValueBoolPointer()},
 		Maturity: zerotrust.Maturity{
 			Step1: int(plan.MaturityStep1.ValueInt64()),
 			Step2: int(plan.MaturityStep2.ValueInt64()),
@@ -474,8 +466,8 @@ func protectsurfaceToResourceModel(ps *zerotrust.ProtectSurface, ctx context.Con
 		ComplianceTags:        ct,
 		CustomerLabels:        cl,
 		SOCTags:               st,
-		AllowFlowsFromOutside: types.BoolValue(ps.FlowsFromOutside.Allow),
-		AllowFlowsToOutside:   types.BoolValue(ps.FlowsToOutside.Allow),
+		AllowFlowsFromOutside: types.BoolPointerValue(ps.FlowsFromOutside.Allow),
+		AllowFlowsToOutside:   types.BoolPointerValue(ps.FlowsToOutside.Allow),
 		MaturityStep1:         types.Int64Value(int64(ps.Maturity.Step1)),
 		MaturityStep2:         types.Int64Value(int64(ps.Maturity.Step2)),
 		MaturityStep3:         types.Int64Value(int64(ps.Maturity.Step3)),

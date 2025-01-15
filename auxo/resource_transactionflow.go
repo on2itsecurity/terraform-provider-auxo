@@ -276,6 +276,11 @@ func (r *transactionflowResource) Delete(ctx context.Context, req resource.Delet
 
 	// Get PS and remove flows
 	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.Protectsurface.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Error finding protect surface", "unexpected error: "+err.Error())
+		return
+	}
+
 	ps.FlowsFromOtherPS = map[string]zerotrust.Flow{}
 	ps.FlowsToOtherPS = map[string]zerotrust.Flow{}
 
@@ -298,7 +303,7 @@ func readFlowsFromPS(ps *zerotrust.ProtectSurface) flows {
 	f.outgoingPSBlock = []basetypes.StringValue{}
 
 	for psID, flow := range ps.FlowsFromOtherPS {
-		if flow.Allow {
+		if *flow.Allow {
 			f.incomingPSAllow = append(f.incomingPSAllow, basetypes.NewStringValue(psID))
 		} else {
 			f.incomingPSBlock = append(f.incomingPSBlock, basetypes.NewStringValue(psID))
@@ -306,7 +311,7 @@ func readFlowsFromPS(ps *zerotrust.ProtectSurface) flows {
 	}
 
 	for psID, flow := range ps.FlowsToOtherPS {
-		if flow.Allow {
+		if *flow.Allow {
 			f.outgoingPSAllow = append(f.outgoingPSAllow, basetypes.NewStringValue(psID))
 		} else {
 			f.outgoingPSBlock = append(f.outgoingPSBlock, basetypes.NewStringValue(psID))
@@ -336,19 +341,19 @@ func setFlowsOnPS(ps *zerotrust.ProtectSurface, flows flows) (*zerotrust.Protect
 	ps.FlowsToOtherPS = map[string]zerotrust.Flow{}
 
 	for _, flow := range flows.incomingPSAllow {
-		ps.FlowsFromOtherPS[flow.ValueString()] = zerotrust.Flow{Allow: true}
+		ps.FlowsFromOtherPS[flow.ValueString()] = zerotrust.Flow{Allow: boolPtr(true)}
 	}
 
 	for _, flow := range flows.incomingPSBlock {
-		ps.FlowsFromOtherPS[flow.ValueString()] = zerotrust.Flow{Allow: false}
+		ps.FlowsFromOtherPS[flow.ValueString()] = zerotrust.Flow{Allow: boolPtr(false)}
 	}
 
 	for _, flow := range flows.outgoingPSAllow {
-		ps.FlowsToOtherPS[flow.ValueString()] = zerotrust.Flow{Allow: true}
+		ps.FlowsToOtherPS[flow.ValueString()] = zerotrust.Flow{Allow: boolPtr(true)}
 	}
 
 	for _, flow := range flows.outgoingPSBlock {
-		ps.FlowsToOtherPS[flow.ValueString()] = zerotrust.Flow{Allow: false}
+		ps.FlowsToOtherPS[flow.ValueString()] = zerotrust.Flow{Allow: boolPtr(false)}
 	}
 
 	return ps, nil
