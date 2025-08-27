@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/on2itsecurity/go-auxo"
+	"github.com/on2itsecurity/go-auxo/v2"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -68,7 +68,7 @@ func (d *assetDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	var state assetDataSourceModel
 
 	//Get assets
-	assets, err := d.client.Asset.GetAssets()
+	assets, err := d.client.Asset.GetAssets(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to retrieve assets", err.Error())
 		return

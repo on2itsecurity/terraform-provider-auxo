@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/on2itsecurity/go-auxo"
-	"github.com/on2itsecurity/go-auxo/zerotrust"
+	"github.com/on2itsecurity/go-auxo/v2"
+	"github.com/on2itsecurity/go-auxo/v2/zerotrust"
 )
 
 // var _ resource.ResourceWithModifyPlan = &protectsurfaceResource{}
@@ -273,7 +273,7 @@ func (r *protectsurfaceResource) Create(ctx context.Context, req resource.Create
 	}
 
 	//Create the protectsurface
-	result, err := r.client.ZeroTrust.CreateProtectSurfaceByObject(protectsurface, false)
+	result, err := r.client.ZeroTrust.CreateProtectSurfaceByObject(ctx, protectsurface, false)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating protect surface", "unexpected error: "+err.Error())
@@ -302,7 +302,7 @@ func (r *protectsurfaceResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	// Get refreshed PS from AUXO
-	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.ID.ValueString())
+	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(ctx, state.ID.ValueString())
 	if err != nil {
 		apiError := getAPIError(err)
 
@@ -347,7 +347,7 @@ func (r *protectsurfaceResource) Update(ctx context.Context, req resource.Update
 		return
 	}
 
-	result, err := r.client.ZeroTrust.UpdateProtectSurface(protectsurface)
+	result, err := r.client.ZeroTrust.UpdateProtectSurface(ctx, protectsurface)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating protect surface", "unexpected error: "+err.Error())
@@ -376,7 +376,7 @@ func (r *protectsurfaceResource) Delete(ctx context.Context, req resource.Delete
 		return
 	}
 
-	err := r.client.ZeroTrust.DeleteProtectSurfaceByID(ps.ID.ValueString())
+	err := r.client.ZeroTrust.DeleteProtectSurfaceByID(ctx, ps.ID.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting protect surface", "unexpected error: "+err.Error())

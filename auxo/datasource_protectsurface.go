@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/on2itsecurity/go-auxo"
+	"github.com/on2itsecurity/go-auxo/v2"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -207,7 +207,7 @@ func (d *protectsurfaceDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	//Get protectsurfaces
-	protectsurfaces, err := d.client.ZeroTrust.GetProtectSurfaces()
+	protectsurfaces, err := d.client.ZeroTrust.GetProtectSurfaces(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to retrieve protectsurfaces", err.Error())
 		return

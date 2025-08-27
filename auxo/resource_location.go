@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/on2itsecurity/go-auxo"
-	"github.com/on2itsecurity/go-auxo/zerotrust"
+	"github.com/on2itsecurity/go-auxo/v2"
+	"github.com/on2itsecurity/go-auxo/v2/zerotrust"
 )
 
 // Ensure the implementation satisfies the resource.Resource interface.
@@ -112,7 +112,7 @@ func (r *locationResource) Create(ctx context.Context, req resource.CreateReques
 	location := resourceModelToLocation(&plan)
 
 	// Create location (API)
-	result, err := r.client.ZeroTrust.CreateLocationByObject(location, false)
+	result, err := r.client.ZeroTrust.CreateLocationByObject(ctx, location, false)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating location", "unexpected error: "+err.Error())
@@ -141,7 +141,7 @@ func (r *locationResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 
 	// Get refreshed location from AUXO
-	result, err := r.client.ZeroTrust.GetLocationByID(location.ID.ValueString())
+	result, err := r.client.ZeroTrust.GetLocationByID(ctx, location.ID.ValueString())
 	if err != nil {
 		apiError := getAPIError(err)
 
@@ -182,7 +182,7 @@ func (r *locationResource) Update(ctx context.Context, req resource.UpdateReques
 	location := resourceModelToLocation(&plan)
 
 	// Update location (API)
-	result, err := r.client.ZeroTrust.UpdateLocation(location)
+	result, err := r.client.ZeroTrust.UpdateLocation(ctx, location)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating location", "unexpected error: "+err.Error())
@@ -209,7 +209,7 @@ func (r *locationResource) Delete(ctx context.Context, req resource.DeleteReques
 	}
 
 	//Delete location
-	err := r.client.ZeroTrust.DeleteLocationByID(location.ID.ValueString())
+	err := r.client.ZeroTrust.DeleteLocationByID(ctx, location.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting location", "unexpected error: "+err.Error())
 		return

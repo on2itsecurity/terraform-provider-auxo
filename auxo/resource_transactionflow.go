@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/on2itsecurity/go-auxo"
-	"github.com/on2itsecurity/go-auxo/zerotrust"
+	"github.com/on2itsecurity/go-auxo/v2"
+	"github.com/on2itsecurity/go-auxo/v2/zerotrust"
 )
 
 var _ resource.Resource = &transactionflowResource{}
@@ -125,7 +125,7 @@ func (r *transactionflowResource) Create(ctx context.Context, req resource.Creat
 
 	// create transactionflow
 	psID := plan.Protectsurface.ValueString()
-	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(psID)
+	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(ctx, psID)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating transactionflow", "unexpected error: "+err.Error())
@@ -144,7 +144,7 @@ func (r *transactionflowResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	ps, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(*ps, true)
+	ps, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(ctx, *ps, true)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating transactionflow", "unexpected error: "+err.Error())
@@ -178,7 +178,7 @@ func (r *transactionflowResource) Read(ctx context.Context, req resource.ReadReq
 	}
 
 	// Get refreshed state from AUXO
-	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.Protectsurface.ValueString())
+	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(ctx, state.Protectsurface.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading transactionflows", "unexpected error: "+err.Error())
 		return
@@ -217,7 +217,7 @@ func (r *transactionflowResource) Update(ctx context.Context, req resource.Updat
 
 	// create transactionflow
 	psID := plan.Protectsurface.ValueString()
-	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(psID)
+	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(ctx, psID)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating transactionflow", "unexpected error: "+err.Error())
@@ -236,7 +236,7 @@ func (r *transactionflowResource) Update(ctx context.Context, req resource.Updat
 		return
 	}
 
-	ps, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(*ps, true)
+	ps, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(ctx, *ps, true)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating transactionflow", "unexpected error: "+err.Error())
@@ -275,7 +275,7 @@ func (r *transactionflowResource) Delete(ctx context.Context, req resource.Delet
 	}
 
 	// Get PS and remove flows
-	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.Protectsurface.ValueString())
+	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(ctx, state.Protectsurface.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error finding protect surface", "unexpected error: "+err.Error())
 		return
@@ -285,7 +285,7 @@ func (r *transactionflowResource) Delete(ctx context.Context, req resource.Delet
 	ps.FlowsToOtherPS = map[string]zerotrust.Flow{}
 
 	// Update PS, with deleted flows
-	_, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(*ps, true)
+	_, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(ctx, *ps, true)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting state", "unexpected error: "+err.Error())
