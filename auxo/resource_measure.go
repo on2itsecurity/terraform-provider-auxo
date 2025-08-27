@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/on2itsecurity/go-auxo"
-	"github.com/on2itsecurity/go-auxo/zerotrust"
+	"github.com/on2itsecurity/go-auxo/v2"
+	"github.com/on2itsecurity/go-auxo/v2/zerotrust"
 )
 
 var _ resource.Resource = &measureResource{}
@@ -184,7 +184,7 @@ func (r *measureResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	// Create(=update) PS
-	ps, err := r.client.ZeroTrust.UpdateProtectSurface(*ps)
+	ps, err := r.client.ZeroTrust.UpdateProtectSurface(ctx, *ps)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating protectsurface", "unexpected error: "+err.Error())
@@ -215,7 +215,7 @@ func (r *measureResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 
 	// Get refreshed state from AUXO
-	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.Protectsurface.ValueString())
+	result, err := r.client.ZeroTrust.GetProtectSurfaceByID(ctx, state.Protectsurface.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading measures", "unexpected error: "+err.Error())
 		return
@@ -256,7 +256,7 @@ func (r *measureResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	// Create(=update) PS
-	ps, err := r.client.ZeroTrust.UpdateProtectSurface(*ps)
+	ps, err := r.client.ZeroTrust.UpdateProtectSurface(ctx, *ps)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating protectsurface", "unexpected error: "+err.Error())
@@ -290,11 +290,11 @@ func (r *measureResource) Delete(ctx context.Context, req resource.DeleteRequest
 	}
 
 	// Get PS and remove measures
-	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(state.Protectsurface.ValueString())
+	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(ctx, state.Protectsurface.ValueString())
 	ps.Measures = map[string]zerotrust.MeasureState{}
 
 	// Update PS, with deleted measures
-	_, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(*ps, true)
+	_, err = r.client.ZeroTrust.CreateProtectSurfaceByObject(ctx, *ps, true)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting measures", "unexpected error: "+err.Error())
@@ -303,7 +303,7 @@ func (r *measureResource) Delete(ctx context.Context, req resource.DeleteRequest
 }
 
 func (r *measureResource) getAvailableMeasures() []string {
-	availableMeasures, _ := r.client.ZeroTrust.GetMeasures()
+	availableMeasures, _ := r.client.ZeroTrust.GetMeasures(context.Background())
 	availableMeasuresInSlice := make([]string, 0)
 	for _, mg := range availableMeasures.Groups {
 		for _, m := range mg.Measures {
@@ -356,7 +356,7 @@ func (r *measureResource) resourceModelToCompletePS(plan *measureResourceModel, 
 	var diags diag.Diagnostics
 
 	psID := plan.Protectsurface.ValueString()
-	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(psID)
+	ps, err := r.client.ZeroTrust.GetProtectSurfaceByID(ctx, psID)
 
 	if err != nil {
 		diags.AddError("Error getting protectsurface", "unexpected error: "+err.Error())

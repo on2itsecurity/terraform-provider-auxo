@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/on2itsecurity/go-auxo"
+	"github.com/on2itsecurity/go-auxo/v2"
 )
 
 // Ensure the implementation satisfies the provider.Provider interface.

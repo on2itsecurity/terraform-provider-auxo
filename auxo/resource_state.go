@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/on2itsecurity/go-auxo"
-	"github.com/on2itsecurity/go-auxo/zerotrust"
+	"github.com/on2itsecurity/go-auxo/v2"
+	"github.com/on2itsecurity/go-auxo/v2/zerotrust"
 )
 
 var _ resource.Resource = &stateResource{}
@@ -143,7 +143,7 @@ func (r *stateResource) Create(ctx context.Context, req resource.CreateRequest, 
 	state := resourceModelToState(&plan, ctx)
 
 	// Create state (API)
-	result, err := r.client.ZeroTrust.CreateStateByObject(state)
+	result, err := r.client.ZeroTrust.CreateStateByObject(ctx, state)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating state", "unexpected error: "+err.Error())
@@ -172,7 +172,7 @@ func (r *stateResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	// Get refreshed state from AUXO
-	result, err := r.client.ZeroTrust.GetStateByID(state.ID.ValueString())
+	result, err := r.client.ZeroTrust.GetStateByID(ctx, state.ID.ValueString())
 	if err != nil {
 		apiError := getAPIError(err)
 
@@ -211,7 +211,7 @@ func (r *stateResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	state := resourceModelToState(&plan, ctx)
 
 	// Create state (API)
-	result, err := r.client.ZeroTrust.CreateStateByObject(state)
+	result, err := r.client.ZeroTrust.CreateStateByObject(ctx, state)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating state", "unexpected error: "+err.Error())
@@ -240,7 +240,7 @@ func (r *stateResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	}
 
 	// Delete state
-	err := r.client.ZeroTrust.DeleteStateByID(state.ID.ValueString())
+	err := r.client.ZeroTrust.DeleteStateByID(ctx, state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting state", "unexpected error: "+err.Error())
 		return

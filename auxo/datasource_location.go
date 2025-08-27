@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/on2itsecurity/go-auxo"
+	"github.com/on2itsecurity/go-auxo/v2"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -94,7 +94,7 @@ func (d *locationDataSource) Read(ctx context.Context, req datasource.ReadReques
 	}
 
 	//Get locations
-	locations, err := d.client.ZeroTrust.GetLocations()
+	locations, err := d.client.ZeroTrust.GetLocations(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to retrieve locations", err.Error())
 		return
