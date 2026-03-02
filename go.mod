@@ -3,14 +3,14 @@ module github.com/on2itsecurity/terraform-provider-auxo
 go 1.25.0
 
 require (
-	github.com/hashicorp/terraform-plugin-framework v1.17.0
+	github.com/hashicorp/terraform-plugin-framework v1.18.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/on2itsecurity/go-auxo/v2 v2.0.2
 )
 
 require (
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/hashicorp/terraform-plugin-go v0.29.0 // indirect
+	github.com/hashicorp/terraform-plugin-go v0.30.0 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.10.0 // indirect
 	github.com/hashicorp/terraform-registry-address v0.4.0 // indirect
 	github.com/hashicorp/terraform-svchost v0.2.0 // indirect
