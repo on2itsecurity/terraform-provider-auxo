@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/on2itsecurity/go-auxo/v2 v2.0.2
+	github.com/on2itsecurity/go-auxo/v2 v2.1.0
 )
 
 require (
